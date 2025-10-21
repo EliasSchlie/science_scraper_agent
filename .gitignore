@@ -1,3 +1,37 @@
+*.DS_Store
+*__pycache__/
+*.pyc
+.env
+.cursor
+.venv
+.db
+mlruns
+mlruns/*
+.pytest_cache
+# Ignore LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.out
+*.nav
+*.snm
+*.vrb
+
+.env
+*.pyc
+__pycache__/
+db.sqlite3
+.venv/
+staticfiles/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
