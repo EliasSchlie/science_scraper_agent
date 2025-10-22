@@ -37,6 +37,7 @@ class ScraperJob(models.Model):
     error_message = models.TextField(blank=True)
     started_at = models.DateTimeField(default=timezone.now)
     completed_at = models.DateTimeField(null=True, blank=True)
+    stop_requested = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-started_at']

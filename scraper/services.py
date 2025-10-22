@@ -32,6 +32,18 @@ class ScraperService:
         self.llm = ChatNebius(model="moonshotai/Kimi-K2-Instruct")
         self.pubmed_api = PubMedAPI()
         self.pdf_from_doi = PDFFromDOI()
+        self._stopped = False
+
+    class JobStoppedException(Exception):
+        pass
+
+    def _check_stopped(self):
+        """Refresh from DB and raise if stop was requested."""
+        # Refresh job to get latest stop flag
+        self.job.refresh_from_db(fields=["stop_requested"]) 
+        if self.job.stop_requested:
+            self._stopped = True
+            raise ScraperService.JobStoppedException("Job stopped by user")
     
     def update_status(self, step: str, message: str = ""):
         """Update job status and add to logs"""
@@ -41,22 +53,38 @@ class ScraperService:
     
     def add_interaction(self, iv: str, dv: str, effect: str, doi: str, pub_date: str):
         """Add interaction to database"""
+        normalized = self._normalize_effect(effect)
+        if normalized is None:
+            # Skip non +/- effects
+            self.update_status("EXTRACT", f"✗ Skipping interaction with invalid effect '{effect}'")
+            return
         Interaction.objects.create(
             independent_variable=iv,
             dependent_variable=dv,
-            effect=effect,
+            effect=normalized,
             reference=doi,
             date_published=pub_date
         )
         self.job.interactions_found += 1
         self.job.save(update_fields=['interactions_found'])
-        self.update_status("EXTRACT", f"💾 Found interaction: {iv} → {dv} ({effect})")
+        self.update_status("EXTRACT", f"💾 Found interaction: {iv} → {dv} ({normalized})")
+
+    def _normalize_effect(self, effect: str) -> Optional[str]:
+        if not effect:
+            return None
+        e = str(effect).strip().lower()
+        if e in ['+', 'increase', 'increases', 'increased', 'up', 'positive', 'pos', 'inc']:
+            return '+'
+        if e in ['-', 'decrease', 'decreases', 'decreased', 'down', 'negative', 'neg', 'dec']:
+            return '-'
+        return None
     
     def run(self):
         """Run the scraper agent"""
         try:
             self.job.status = 'running'
             self.job.save(update_fields=['status'])
+            self._check_stopped()
             
             # Build and run the workflow
             agent = self._build_workflow()
@@ -78,7 +106,14 @@ class ScraperService:
             self.job.completed_at = timezone.now()
             self.job.current_step = f"Completed: {self.job.interactions_found} interactions from {self.job.papers_checked} papers"
             self.job.save()
-            
+        except ScraperService.JobStoppedException as e:
+            # Mark as failed (stopped) and finish
+            self.job.status = 'failed'
+            self.job.error_message = 'Job stopped by user'
+            self.job.completed_at = timezone.now()
+            self.job.add_log('Job stopped by user')
+            self.job.save()
+            return
         except Exception as e:
             self.job.status = 'failed'
             self.job.error_message = str(e)
@@ -140,6 +175,7 @@ class ScraperService:
     # Node functions (adapted from paperfinder.py)
     def _create_query(self, state: GraphState) -> dict:
         """AI creates PubMed query from variable of interest"""
+        self._check_stopped()
         tried = state.get("tried_queries", [])
         
         if tried:
@@ -169,6 +205,7 @@ Create a concise PubMed search query for finding intervention studies on human s
     
     def _search_pubmed(self, state: GraphState) -> dict:
         """Search PubMed API"""
+        self._check_stopped()
         self.update_status("PUBMED", f"Searching: {state['query']}")
         papers = self.pubmed_api.search(state['query'], max_results=100)
         self.update_status("PUBMED", f"Found {len(papers)} papers")
@@ -176,6 +213,7 @@ Create a concise PubMed search query for finding intervention studies on human s
     
     def _filter_papers(self, state: GraphState) -> dict:
         """Filter out already checked papers"""
+        self._check_stopped()
         checked = state.get("checked_dois", [])
         filtered = [p for p in state["papers"] if p.get("doi") and p["doi"] not in checked]
         self.update_status("FILTER", f"Filtered to {len(filtered)} new papers")
@@ -183,6 +221,7 @@ Create a concise PubMed search query for finding intervention studies on human s
     
     def _check_abstract(self, state: GraphState) -> dict:
         """AI checks if abstract is relevant"""
+        self._check_stopped()
         if not state["papers"]:
             return {"current_paper": {}}
         
@@ -209,6 +248,7 @@ Create a concise PubMed search query for finding intervention studies on human s
     
     def _download_paper(self, state: GraphState) -> dict:
         """Download paper PDF and convert to markdown"""
+        self._check_stopped()
         paper = state["current_paper"]
         doi = paper.get("doi")
         
@@ -233,6 +273,7 @@ Create a concise PubMed search query for finding intervention studies on human s
     
     def _extract_interactions(self, state: GraphState) -> dict:
         """AI extracts interactions from paper"""
+        self._check_stopped()
         if not state["paper_md"]:
             return {"interactions_count": state.get("interactions_count", 0), "current_paper": {}, "paper_md": ""}
         
@@ -292,6 +333,7 @@ Paper content:
         iteration = 0
         
         while not extraction_complete and iteration < max_iterations:
+            self._check_stopped()
             iteration += 1
             response = llm_with_tools.invoke(messages)
             messages.append(response)

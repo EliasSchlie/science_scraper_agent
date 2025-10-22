@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/job/<int:job_id>/status/', views.job_status, name='job_status'),
     path('api/job/<int:job_id>/interactions/', views.job_interactions, name='job_interactions'),
     path('api/job/<int:job_id>/stop/', views.stop_job, name='stop_job'),
+    path('api/job/<int:job_id>/delete/', views.delete_job, name='delete_job'),
     path('api/interactions/', views.interactions_list, name='interactions_list'),
 ]
 

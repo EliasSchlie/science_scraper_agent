@@ -63,17 +63,18 @@ def job_status(request, job_id):
         'interactions_found': job.interactions_found,
         'papers_checked': job.papers_checked,
         'current_step': job.current_step,
-        'logs': job.logs,  # NEW: Send all accumulated logs
+        'logs': job.logs,  # accumulated logs
         'error_message': job.error_message,
         'started_at': job.started_at.isoformat(),
         'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+        'stop_requested': job.stop_requested,
     })
 
 
 @require_GET
 def interactions_list(request):
     """Get list of all interactions"""
-    interactions = Interaction.objects.all()[:100]  # Limit to 100 most recent
+    interactions = Interaction.objects.filter(effect__in=['+', '-'])[:100]  # Only valid effects
     
     data = [{
         'id': i.id,
@@ -85,7 +86,7 @@ def interactions_list(request):
         'created_at': i.created_at.isoformat(),
     } for i in interactions]
     
-    return JsonResponse({'interactions': data, 'total': Interaction.objects.count()})
+    return JsonResponse({'interactions': data, 'total': Interaction.objects.filter(effect__in=['+', '-']).count()})
 
 
 @require_GET
@@ -104,6 +105,7 @@ def job_interactions(request, job_id):
             created_at__gte=job.started_at
         )
     
+    # Only include interactions with '+' or '-' effect
     data = [{
         'id': i.id,
         'independent_variable': i.independent_variable,
@@ -111,7 +113,7 @@ def job_interactions(request, job_id):
         'effect': i.effect,
         'reference': i.reference,
         'date_published': i.date_published,
-    } for i in interactions]
+    } for i in interactions if i.effect in ['+', '-']]
     
     return JsonResponse({'interactions': data, 'count': len(data)})
 
@@ -123,14 +125,30 @@ def stop_job(request, job_id):
     job = get_object_or_404(ScraperJob, id=job_id)
     
     if job.status == 'running':
-        from django.utils import timezone
-        job.status = 'failed'
-        job.error_message = 'Job stopped by user'
-        job.completed_at = timezone.now()
-        job.add_log('Job stopped by user')
-        job.save()
-        
-        return JsonResponse({'message': 'Job stopped successfully', 'status': job.status})
+        job.stop_requested = True
+        job.add_log('Stop requested by user')
+        job.save(update_fields=['stop_requested', 'logs', 'current_step'])
+        return JsonResponse({'message': 'Stop requested. Job will halt shortly.', 'status': job.status})
     else:
         return JsonResponse({'error': 'Job is not running'}, status=400)
+
+
+@require_POST
+@csrf_exempt
+def delete_job(request, job_id):
+    """Delete a job and its associated data"""
+    job = get_object_or_404(ScraperJob, id=job_id)
+    
+    # Check if force delete is requested
+    force = request.POST.get('force') == 'true' or json.loads(request.body or '{}').get('force') == True
+    
+    # Only allow deleting non-running jobs unless force is true
+    if job.status == 'running' and not force:
+        return JsonResponse({
+            'error': 'Job appears to be running. If the job is stuck, you can force delete it.',
+            'can_force': True
+        }, status=400)
+    
+    job.delete()
+    return JsonResponse({'message': 'Job deleted successfully'})
 
