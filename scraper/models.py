@@ -33,6 +33,7 @@ class ScraperJob(models.Model):
     interactions_found = models.IntegerField(default=0)
     papers_checked = models.IntegerField(default=0)
     current_step = models.TextField(blank=True)
+    logs = models.TextField(blank=True, default='')  # NEW: Accumulate all logs
     error_message = models.TextField(blank=True)
     started_at = models.DateTimeField(default=timezone.now)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -42,4 +43,13 @@ class ScraperJob(models.Model):
     
     def __str__(self):
         return f"Job {self.id}: {self.variable_of_interest} ({self.status})"
+    
+    def add_log(self, message):
+        """Add a log entry with timestamp"""
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_entry = f"[{timestamp}] {message}\n"
+        self.logs += log_entry
+        self.current_step = message
+        self.save(update_fields=['logs', 'current_step'])
 

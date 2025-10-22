@@ -187,24 +187,36 @@
       }
 
       .step-log {
-        background: #f8f9fa;
+        background: #1e1e1e;
+        color: #d4d4d4;
         border-radius: 8px;
         padding: 15px;
-        max-height: 300px;
+        max-height: 400px;
         overflow-y: auto;
-        font-family: 'Courier New', monospace;
-        font-size: 0.9em;
-        line-height: 1.6;
+        font-family: 'Courier New', 'Monaco', monospace;
+        font-size: 0.85em;
+        line-height: 1.8;
         margin-top: 15px;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
       }
 
       .step-log .step {
-        padding: 5px 0;
-        border-bottom: 1px solid #e0e0e0;
+        padding: 3px 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
       }
 
-      .step-log .step:last-child {
-        border-bottom: none;
+      /* Syntax highlighting for logs */
+      .step-log .step:has-text('✓') {
+        color: #4ec9b0;
+      }
+
+      .step-log .step:has-text('✗') {
+        color: #f48771;
+      }
+
+      .step-log .step:has-text('💾') {
+        color: #dcdcaa;
       }
 
       .interactions-table {
@@ -357,7 +369,29 @@
         id="progress-container"
         style="display: none"
       >
-        <h2>📝 Job Progress</h2>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+          "
+        >
+          <h2 style="margin: 0">📝 Job Progress</h2>
+          <button
+            id="stop-job-btn"
+            class="btn"
+            style="
+              width: auto;
+              padding: 8px 16px;
+              font-size: 14px;
+              background: #ff7675;
+            "
+            onclick="stopJob()"
+          >
+            ⏹ Stop Job
+          </button>
+        </div>
         <div><strong>Variable:</strong> <span id="job-variable"></span></div>
         <div style="margin-top: 10px">
           <span id="job-status-badge" class="status-badge"></span>
@@ -387,6 +421,17 @@
     <script>
       let currentJobId = null;
       let pollInterval = null;
+
+      // On page load, check if there's a running or recent job to display
+      window.addEventListener('DOMContentLoaded', () => {
+        // Check URL parameters for job_id
+        const urlParams = new URLSearchParams(window.location.search);
+        const jobId = urlParams.get('job_id');
+
+        if (jobId) {
+          loadJob(parseInt(jobId));
+        }
+      });
 
       // Handle form submission
       document
@@ -418,8 +463,9 @@
 
             if (response.ok) {
               currentJobId = data.job_id;
-              loadJob(currentJobId);
-              startPolling();
+
+              // Redirect to show the job with query parameter
+              window.location.href = `/scraper/?job_id=${data.job_id}`;
             } else {
               alert('Error: ' + data.error);
             }
@@ -465,13 +511,49 @@
         statusBadge.textContent = data.status;
         statusBadge.className = 'status-badge status-' + data.status;
 
-        if (data.current_step) {
+        // Update stop button visibility
+        updateStopButton(data.status);
+
+        // Display all accumulated logs with color coding
+        if (data.logs) {
           const stepLog = document.getElementById('step-log');
-          const stepDiv = document.createElement('div');
-          stepDiv.className = 'step';
-          stepDiv.textContent =
-            new Date().toLocaleTimeString() + ' - ' + data.current_step;
-          stepLog.appendChild(stepDiv);
+          // Replace content with all logs (they already have timestamps)
+          stepLog.innerHTML = data.logs
+            .split('\n')
+            .filter((line) => line.trim())
+            .map((line) => {
+              let color = '#d4d4d4'; // default
+              let style = '';
+
+              // Color code based on content
+              if (line.includes('✓') || line.includes('success')) {
+                color = '#4ec9b0'; // success green
+              } else if (
+                line.includes('✗') ||
+                line.includes('Error') ||
+                line.includes('failed')
+              ) {
+                color = '#f48771'; // error red
+              } else if (
+                line.includes('💾') ||
+                line.includes('Found interaction')
+              ) {
+                color = '#dcdcaa'; // interaction yellow
+                style = 'font-weight: bold;';
+              } else if (line.includes('📥') || line.includes('📄')) {
+                color = '#569cd6'; // download blue
+              } else if (line.includes('[QUERY]')) {
+                color = '#c586c0'; // query purple
+              } else if (line.includes('[PUBMED]')) {
+                color = '#9cdcfe'; // pubmed light blue
+              } else if (line.includes('[ABSTRACT]')) {
+                color = '#ce9178'; // abstract orange
+              }
+
+              return `<div class="step" style="color: ${color}; ${style}">${line}</div>`;
+            })
+            .join('');
+          // Auto-scroll to bottom
           stepLog.scrollTop = stepLog.scrollHeight;
         }
       }
@@ -501,29 +583,42 @@
         }
 
         let html = `
-                <table class="interactions-table">
-                    <thead>
-                        <tr>
-                            <th>Independent Variable</th>
-                            <th>Effect</th>
-                            <th>Dependent Variable</th>
-                            <th>Reference</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+                 <table class="interactions-table">
+                     <thead>
+                         <tr>
+                             <th>Independent Variable</th>
+                             <th>Effect</th>
+                             <th>Dependent Variable</th>
+                             <th>Reference</th>
+                         </tr>
+                     </thead>
+                     <tbody>
+             `;
 
         interactions.forEach((i) => {
-          const effectClass =
-            i.effect === '+' ? 'effect-positive' : 'effect-negative';
+          // Convert effect to readable text
+          let effectText = '';
+          let effectClass = '';
+
+          if (i.effect === '+') {
+            effectText = '<strong style="color: #00b894;">INCREASES</strong>';
+            effectClass = 'effect-positive';
+          } else if (i.effect === '-') {
+            effectText = '<strong style="color: #ff7675;">DECREASES</strong>';
+            effectClass = 'effect-negative';
+          } else {
+            effectText = i.effect; // fallback for other values
+            effectClass = '';
+          }
+
           html += `
-                    <tr>
-                        <td>${i.independent_variable}</td>
-                        <td class="${effectClass}">${i.effect}</td>
-                        <td>${i.dependent_variable}</td>
-                        <td><a href="https://doi.org/${i.reference}" target="_blank">${i.reference}</a></td>
-                    </tr>
-                `;
+                     <tr>
+                         <td>${i.independent_variable}</td>
+                         <td class="${effectClass}">${effectText}</td>
+                         <td>${i.dependent_variable}</td>
+                         <td><a href="https://doi.org/${i.reference}" target="_blank" style="color: #667eea; text-decoration: none;">${i.reference}</a></td>
+                     </tr>
+                 `;
         });
 
         html += '</tbody></table>';
@@ -568,6 +663,47 @@
         if (pollInterval) {
           clearInterval(pollInterval);
           pollInterval = null;
+        }
+      }
+
+      // Stop/cancel current job
+      async function stopJob() {
+        if (!currentJobId) return;
+
+        if (!confirm('Are you sure you want to stop this job?')) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `/scraper/api/job/${currentJobId}/stop/`,
+            {
+              method: 'POST',
+            }
+          );
+
+          if (response.ok) {
+            alert('Job stopped successfully');
+            stopPolling();
+            loadJob(currentJobId); // Refresh to show stopped status
+          } else {
+            alert('Failed to stop job');
+          }
+        } catch (error) {
+          console.error('Error stopping job:', error);
+          alert('Error stopping job');
+        }
+      }
+
+      // Update stop button visibility based on status
+      function updateStopButton(status) {
+        const stopBtn = document.getElementById('stop-job-btn');
+        if (stopBtn) {
+          if (status === 'running') {
+            stopBtn.style.display = 'block';
+          } else {
+            stopBtn.style.display = 'none';
+          }
         }
       }
     </script>

@@ -34,10 +34,10 @@ class ScraperService:
         self.pdf_from_doi = PDFFromDOI()
     
     def update_status(self, step: str, message: str = ""):
-        """Update job status"""
-        self.job.current_step = f"[{step}] {message}"
-        self.job.save(update_fields=['current_step'])
-        print(f"[Job {self.job.id}] [{step}] {message}")
+        """Update job status and add to logs"""
+        log_message = f"[{step}] {message}"
+        print(f"[Job {self.job.id}] {log_message}")
+        self.job.add_log(log_message)
     
     def add_interaction(self, iv: str, dv: str, effect: str, doi: str, pub_date: str):
         """Add interaction to database"""
@@ -50,7 +50,7 @@ class ScraperService:
         )
         self.job.interactions_found += 1
         self.job.save(update_fields=['interactions_found'])
-        self.update_status("EXTRACT", f"Stored: {iv} -> {dv} ({effect})")
+        self.update_status("EXTRACT", f"💾 Found interaction: {iv} → {dv} ({effect})")
     
     def run(self):
         """Run the scraper agent"""
@@ -189,8 +189,9 @@ Create a concise PubMed search query for finding intervention studies on human s
         paper = state["papers"][0]
         remaining = state["papers"][1:]
         
-        title_short = paper.get('title', 'No title')[:50]
-        self.update_status("ABSTRACT", f"Checking: {title_short}...")
+        # Show full title in logs
+        title = paper.get('title', 'No title')
+        self.update_status("ABSTRACT", f"Checking paper: '{title}'")
         
         response = self.llm.invoke([
             SystemMessage(content=f"You are evaluating if this paper is relevant to: {state['variable_of_interest']}. Check if it's an intervention study on human substrate. Reply with 'yes' or 'no'."),
@@ -198,11 +199,12 @@ Create a concise PubMed search query for finding intervention studies on human s
         ])
         
         is_relevant = response.content.strip().lower() in ["yes", "y"]
-        self.update_status("ABSTRACT", f"Relevant: {is_relevant}")
         
         if is_relevant:
+            self.update_status("ABSTRACT", f"✓ Paper is relevant! Will download.")
             return {"papers": remaining, "current_paper": paper, "checked_dois": [paper.get("doi", "")]}
         else:
+            self.update_status("ABSTRACT", f"✗ Not relevant. Skipping.")
             return {"papers": remaining, "current_paper": {}, "checked_dois": [paper.get("doi", "")]}
     
     def _download_paper(self, state: GraphState) -> dict:
@@ -213,15 +215,20 @@ Create a concise PubMed search query for finding intervention studies on human s
         if not doi:
             return {"paper_md": "", "current_paper": {}}
         
-        self.update_status("DOWNLOAD", f"Downloading: {doi}")
+        self.update_status("DOWNLOAD", f"📥 Downloading PDF for DOI: {doi}")
         
         try:
             path = self.pdf_from_doi.download(doi)
+            self.update_status("DOWNLOAD", f"✓ PDF downloaded successfully")
+            self.update_status("CONVERT", f"📄 Converting PDF to text...")
             md = pymupdf4llm.to_markdown(str(path))
-            self.update_status("DOWNLOAD", f"Converted to markdown ({len(md)} chars)")
+            self.update_status("CONVERT", f"✓ Converted to text ({len(md):,} characters)")
             return {"paper_md": md}
+        except FileNotFoundError as e:
+            self.update_status("DOWNLOAD", f"✗ Paper is paywalled (not open access). Skipping.")
+            return {"paper_md": "", "current_paper": {}}
         except Exception as e:
-            self.update_status("DOWNLOAD", f"Error: {e}")
+            self.update_status("DOWNLOAD", f"✗ Download failed: {str(e)}")
             return {"paper_md": "", "current_paper": {}}
     
     def _extract_interactions(self, state: GraphState) -> dict:

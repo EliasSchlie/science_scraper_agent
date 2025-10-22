@@ -63,6 +63,7 @@ def job_status(request, job_id):
         'interactions_found': job.interactions_found,
         'papers_checked': job.papers_checked,
         'current_step': job.current_step,
+        'logs': job.logs,  # NEW: Send all accumulated logs
         'error_message': job.error_message,
         'started_at': job.started_at.isoformat(),
         'completed_at': job.completed_at.isoformat() if job.completed_at else None,
@@ -113,4 +114,23 @@ def job_interactions(request, job_id):
     } for i in interactions]
     
     return JsonResponse({'interactions': data, 'count': len(data)})
+
+
+@require_POST
+@csrf_exempt
+def stop_job(request, job_id):
+    """Stop a running job"""
+    job = get_object_or_404(ScraperJob, id=job_id)
+    
+    if job.status == 'running':
+        from django.utils import timezone
+        job.status = 'failed'
+        job.error_message = 'Job stopped by user'
+        job.completed_at = timezone.now()
+        job.add_log('Job stopped by user')
+        job.save()
+        
+        return JsonResponse({'message': 'Job stopped successfully', 'status': job.status})
+    else:
+        return JsonResponse({'error': 'Job is not running'}, status=400)
 
