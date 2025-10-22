@@ -32,6 +32,7 @@ db.sqlite3
 staticfiles/
 media/
 
+scraper-agent-code/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
