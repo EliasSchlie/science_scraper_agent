@@ -2,3 +2,11 @@ django>=5.2.7
 python-decouple>=3.8
 gunicorn>=23.0.0
 whitenoise>=6.11.0
+
+# Scraper agent dependencies
+langchain>=0.3.0
+langchain-nebius>=0.1.3
+langgraph>=0.2.0
+pymupdf4llm>=0.0.27
+typing-extensions>=4.12.0
+dotenv>=0.9.9

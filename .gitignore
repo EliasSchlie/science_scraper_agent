@@ -30,7 +30,9 @@ __pycache__/
 db.sqlite3
 .venv/
 staticfiles/
+media/
 
+scraper-agent-code/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
