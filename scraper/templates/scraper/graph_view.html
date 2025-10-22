@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Network Intervention Visualizer</title>
+    <title>Interactive Graph Explorer</title>
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <style>
       * {
@@ -17,90 +17,89 @@
           sans-serif;
         background: #1e1e1e;
         color: #dcddde;
-        padding: 0;
-        margin: 0;
+        overflow: hidden;
       }
 
-      /* Navigation tabs */
-      .nav-tabs {
+      .top-bar {
         background: #0a0a0a;
         border-bottom: 1px solid #2a2a2a;
-        padding: 0;
-        display: flex;
-        justify-content: center;
-      }
-
-      .nav-tabs a {
-        color: #dcddde;
-        text-decoration: none;
         padding: 15px 30px;
-        display: inline-block;
-        border-bottom: 3px solid transparent;
-        transition: all 0.3s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
 
-      .nav-tabs a:hover {
-        background: #1a1a1a;
-      }
-
-      .nav-tabs a.active {
-        border-bottom-color: #5865f2;
+      .top-bar h1 {
+        font-size: 20px;
+        font-weight: 500;
         color: #ffffff;
       }
 
-      .container {
-        max-width: 100%;
-        margin: 0;
-        padding: 20px;
+      .workspace-selector {
+        display: flex;
+        gap: 15px;
+        align-items: center;
       }
 
-      h1 {
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 24px;
+      .workspace-selector select {
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        color: #dcddde;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        min-width: 200px;
+      }
+
+      .btn {
+        background: #5865f2;
+        color: #ffffff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
         font-weight: 500;
+        transition: all 0.2s;
       }
 
-      .main-layout {
-        display: flex;
-        gap: 20px;
-        height: calc(100vh - 180px);
-        width: 100%;
-        max-width: 100%;
-        overflow: hidden;
+      .btn:hover {
+        background: #4752c4;
       }
 
-      .left-panel {
-        flex-grow: 1;
-        flex-shrink: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        min-width: 0;
-        transition: all 0.3s ease;
+      .btn-secondary {
+        background: #2d2d2d;
+        border: 1px solid #404040;
       }
 
-      .right-panel {
-        flex: 0 0 400px;
+      .btn-secondary:hover {
+        background: #3a3a3a;
+        border-color: #606060;
+      }
+
+      .btn-danger {
+        background: rgba(255, 118, 117, 0.2);
+        border: 1px solid rgba(255, 118, 117, 0.3);
+        color: #ff7675;
+      }
+
+      .btn-danger:hover {
+        background: rgba(255, 118, 117, 0.3);
+      }
+
+      .main-container {
         display: flex;
-        flex-direction: column;
-        gap: 15px;
+        height: calc(100vh - 61px);
+      }
+
+      .graph-panel {
+        flex: 1;
         position: relative;
-        transition: all 0.3s ease;
-        overflow: hidden;
-      }
-
-      .right-panel.collapsed {
-        flex: 0 0 40px;
-      }
-
-      .graph-container {
         background: #2d2d2d;
         border: 1px solid #404040;
         border-radius: 8px;
-        flex: 1;
-        position: relative;
-        min-height: 400px;
+        min-height: 500px;
+        overflow: hidden;
       }
 
       .recenter-button {
@@ -122,382 +121,678 @@
         background: #4a4a4a;
       }
 
-      .intervention-panel {
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        border-radius: 8px;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .intervention-panel label {
-        font-size: 14px;
-        white-space: nowrap;
-      }
-
-      .intervention-panel select,
-      .intervention-panel input {
-        background: #1e1e1e;
-        border: 1px solid #404040;
-        color: #dcddde;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 14px;
-      }
-
-      .intervention-panel select {
-        min-width: 180px;
-      }
-
-      .intervention-panel input {
-        flex: 1;
-      }
-
-      .intervention-panel button {
-        background: #404040;
-        border: none;
-        color: #dcddde;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        transition: background 0.2s;
-      }
-
-      .intervention-panel button:hover {
-        background: #4a4a4a;
-      }
-
-      .interactions-list,
-      .affected-list {
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        border-radius: 8px;
-        padding: 20px;
-        overflow-y: auto;
-        flex: 1;
-      }
-
-      .right-panel.collapsed .interactions-list,
-      .right-panel.collapsed .affected-list {
-        display: none;
-      }
-
-      .interactions-list h3,
-      .affected-list h3 {
-        font-size: 16px;
-        font-weight: 500;
-        margin-bottom: 15px;
-        border-bottom: 1px solid #404040;
-        padding-bottom: 10px;
-      }
-
-      .interaction-item,
-      .affected-item {
-        padding: 8px 0;
-        font-size: 13px;
-        line-height: 1.5;
-        border-bottom: 1px solid #333;
-      }
-
-      .interaction-item:last-child,
-      .affected-item:last-child {
-        border-bottom: none;
-      }
-
-      .doi-link {
-        color: #7289da;
-        text-decoration: none;
-        font-size: 12px;
-        margin-left: 5px;
-      }
-
-      .doi-link:hover {
-        text-decoration: underline;
-      }
-
-      .effect-increase {
-        color: #43b581;
-      }
-
-      .effect-decrease {
-        color: #f04747;
-      }
-
       #cy {
         width: 100%;
         height: 100%;
+        position: relative;
       }
 
-      .loading {
+      .graph-overlay {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #dcddde;
-      }
-
-      .collapse-toggle {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: #404040;
-        border: 1px solid #606060;
-        border-radius: 4px;
-        width: 30px;
-        height: 30px;
-        cursor: pointer;
+        top: 20px;
+        right: 20px;
+        z-index: 10;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .info-box {
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid #404040;
+        border-radius: 8px;
+        padding: 15px;
         color: #dcddde;
+        min-width: 250px;
+      }
+
+      .info-box h3 {
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 10px;
+        color: #ffffff;
+      }
+
+      .info-box .detail {
+        font-size: 13px;
+        margin-bottom: 5px;
+        opacity: 0.8;
+      }
+
+      .side-panel {
+        width: 350px;
+        background: #2d2d2d;
+        border-left: 1px solid #404040;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .panel-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #404040;
+        font-weight: 500;
         font-size: 16px;
-        transition: all 0.2s;
-        z-index: 100;
       }
 
-      .collapse-toggle:hover {
-        background: #4a4a4a;
+      .panel-content {
+        overflow-y: visible;
+        padding: 15px;
       }
 
-      .reference-link {
-        color: #7289da;
-        text-decoration: none;
-        cursor: pointer;
+      .panel-content.scrollable {
+        flex: 1;
+        overflow-y: auto;
+      }
+
+      .job-item {
+        background: #1e1e1e;
+        border: 1px solid #404040;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+
+      .job-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .job-variable {
+        font-weight: 500;
+        color: #ffffff;
+        font-size: 14px;
+      }
+
+      .status-badge {
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .status-pending {
+        background: rgba(253, 203, 110, 0.2);
+        color: #fdcb6e;
+      }
+      .status-running {
+        background: rgba(116, 185, 255, 0.2);
+        color: #74b9ff;
+      }
+      .status-completed {
+        background: rgba(0, 184, 148, 0.2);
+        color: #00b894;
+      }
+      .status-failed {
+        background: rgba(255, 118, 117, 0.2);
+        color: #ff7675;
+      }
+
+      .job-stats {
+        font-size: 12px;
+        opacity: 0.7;
+      }
+
+      .job-logs {
+        background: #0a0a0a;
+        border-radius: 4px;
+        padding: 8px;
+        margin-top: 8px;
+        max-height: 150px;
+        overflow-y: auto;
+        font-family: 'SF Mono', monospace;
+        font-size: 11px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .log-viewer {
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .log-box {
+        padding: 12px 14px;
+        border-radius: 8px;
+        border: 2px solid;
+        border-left: 5px solid;
+        font-size: 13px;
+        line-height: 1.5;
+        animation: slideIn 0.3s ease;
         font-weight: 500;
       }
 
-      .reference-link:hover {
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .log-box-query {
+        background: linear-gradient(135deg, rgba(33, 150, 243, 0.4), rgba(33, 150, 243, 0.25));
+        border-color: #2196f3;
+        border-left-color: #42a5f5;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+      }
+
+      .log-box-pubmed {
+        background: linear-gradient(135deg, rgba(76, 175, 80, 0.4), rgba(76, 175, 80, 0.25));
+        border-color: #4caf50;
+        border-left-color: #66bb6a;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+      }
+
+      .log-box-abstract {
+        background: linear-gradient(135deg, rgba(255, 152, 0, 0.4), rgba(255, 152, 0, 0.25));
+        border-color: #ff9800;
+        border-left-color: #ffa726;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+      }
+
+      .log-box-success {
+        background: linear-gradient(135deg, rgba(0, 230, 118, 0.4), rgba(0, 230, 118, 0.25));
+        border-color: #00e676;
+        border-left-color: #00e676;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(0, 230, 118, 0.3);
+      }
+
+      .log-box-fail {
+        background: linear-gradient(135deg, rgba(244, 67, 54, 0.4), rgba(244, 67, 54, 0.25));
+        border-color: #f44336;
+        border-left-color: #ef5350;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+      }
+
+      .log-box-download {
+        background: linear-gradient(135deg, rgba(156, 39, 176, 0.4), rgba(156, 39, 176, 0.25));
+        border-color: #9c27b0;
+        border-left-color: #ab47bc;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3);
+      }
+
+      .log-box-extract {
+        background: linear-gradient(135deg, rgba(0, 229, 255, 0.4), rgba(0, 229, 255, 0.25));
+        border-color: #00e5ff;
+        border-left-color: #18ffff;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(0, 229, 255, 0.3);
+      }
+
+      .log-box-status {
+        background: linear-gradient(135deg, rgba(158, 158, 158, 0.3), rgba(158, 158, 158, 0.2));
+        border-color: #9e9e9e;
+        border-left-color: #bdbdbd;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(158, 158, 158, 0.2);
+      }
+
+      .log-box .emoji {
+        margin-right: 8px;
+        font-size: 14px;
+      }
+
+      .log-box a {
+        color: inherit;
         text-decoration: underline;
+        font-weight: 500;
+      }
+
+      .log-box a:hover {
+        opacity: 0.8;
+      }
+
+      .paper-divider {
+        height: 1px;
+        background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+        margin: 4px 0;
+      }
+
+      .current-step {
+        color: #74b9ff;
+        font-weight: bold;
+        padding: 8px;
+        background: rgba(116, 185, 255, 0.1);
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+
+      /* Modal */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-content {
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        border-radius: 8px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+      }
+
+      .modal-content h2 {
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: 500;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #b0b0b0;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 10px 12px;
+        background: #1e1e1e;
+        border: 1px solid #404040;
+        border-radius: 6px;
+        color: #dcddde;
+        font-size: 14px;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #5865f2;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
       }
 
       .empty-state {
         text-align: center;
-        padding: 40px;
+        padding: 60px 20px;
         color: #666;
+      }
+
+      .empty-state h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+        color: #888;
+      }
+
+      .empty-state p {
+        font-size: 14px;
+        margin-bottom: 20px;
+      }
+
+      .node-action-panel {
+        position: fixed;
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid #404040;
+        border-radius: 8px;
+        padding: 15px;
+        display: none;
+        z-index: 1000;
+        pointer-events: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      .node-action-panel.active {
+        display: block;
+      }
+
+      .node-action-panel h4 {
+        font-size: 14px;
+        margin-bottom: 10px;
+        color: #ffffff;
+      }
+
+      .node-action-panel .node-name {
+        font-weight: bold;
+        color: #5865f2;
       }
     </style>
   </head>
   <body>
-    <!-- Navigation tabs -->
-    <nav class="nav-tabs">
-      <a href="/scraper/">Scraper</a>
-      <a href="/scraper/graph/" class="active">Network Graph</a>
-    </nav>
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <h1>🔬 Interactive Graph Explorer</h1>
+      <div class="workspace-selector">
+        <select id="workspace-select">
+          <option value="">Select a workspace...</option>
+          {% for ws in workspaces %}
+          <option value="{{ ws.id }}">{{ ws.name }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" onclick="openCreateWorkspaceModal()">
+          + Create Workspace
+        </button>
+        <button
+          class="btn btn-danger"
+          id="delete-workspace-btn"
+          style="display: none"
+          onclick="deleteWorkspace()"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
 
-    <div class="container">
-      <h1>Network Intervention Visualizer</h1>
-
-      <div class="main-layout">
-        <div class="left-panel">
-          <div class="graph-container" id="cy">
-            <div class="loading" id="loading-indicator">
-              Loading interactions...
-            </div>
-            <button
-              class="recenter-button"
-              id="recenter-button"
-              style="display: none"
-            >
-              ⟲ Recenter
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Graph Panel -->
+      <div class="graph-panel">
+        <div id="cy">
+          <div class="empty-state">
+            <h2>No Workspace Selected</h2>
+            <p>
+              Create a new workspace or select an existing one to get started
+            </p>
+            <button class="btn" onclick="openCreateWorkspaceModal()">
+              + Create Your First Workspace
             </button>
           </div>
+        </div>
+        <button class="recenter-button" id="recenter-button" style="display: none;" onclick="recenterGraph()">
+          ⟲ Recenter
+        </button>
 
-          <div class="intervention-panel">
-            <label>Make an intervention:</label>
-            <select id="intervention-type">
-              <option value="increase">Type (increase/decrease)</option>
-              <option value="increase">Increase</option>
-              <option value="decrease">Decrease</option>
-            </select>
-            <input
-              type="text"
-              id="intervention-element"
-              placeholder="Element"
-              list="elements-list"
-            />
-            <datalist id="elements-list"></datalist>
-            <button id="apply-intervention">Apply</button>
-            <button id="reset-intervention">Reset</button>
+        <div class="graph-overlay">
+          <div class="info-box" id="workspace-info" style="display: none">
+            <h3 id="workspace-name">Workspace Name</h3>
+            <div class="detail">
+              Initial: <strong id="initial-variable">-</strong>
+            </div>
+            <div class="detail">Nodes: <strong id="node-count">0</strong></div>
+            <div class="detail">Edges: <strong id="edge-count">0</strong></div>
           </div>
         </div>
 
-        <div class="right-panel" id="right-panel">
-          <div class="collapse-toggle" id="collapse-toggle">◀</div>
-          <div class="interactions-list">
-            <h3>List of interactions</h3>
-            <div id="interactions-content"></div>
+        <!-- Node Action Panel -->
+        <div class="node-action-panel" id="node-action-panel">
+          <h4>
+            Expand: <span class="node-name" id="selected-node-name"></span>
+          </h4>
+          <div style="margin-bottom: 10px">
+            <label style="font-size: 12px; color: #b0b0b0"
+              >Min interactions:</label
+            >
+            <input
+              type="number"
+              id="expand-min-interactions"
+              value="5"
+              min="1"
+              max="20"
+              style="
+                width: 100%;
+                padding: 6px;
+                background: #1e1e1e;
+                border: 1px solid #404040;
+                border-radius: 4px;
+                color: #dcddde;
+              "
+            />
           </div>
+          <button class="btn" style="width: 100%" onclick="expandNode()">
+            🔍 Search Interactions
+          </button>
+          <button
+            class="btn btn-secondary"
+            style="width: 100%; margin-top: 8px"
+            onclick="closeNodePanel()"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
 
-          <div class="affected-list" id="affected-panel" style="display: none">
-            <h3>List of affected elements</h3>
-            <div id="affected-content"></div>
+      <!-- Side Panel: Jobs & Logs -->
+      <div class="side-panel">
+        <!-- Upper Section: Active Job Info -->
+        <div style="border-bottom: 1px solid #404040;">
+          <div class="panel-header">Active Job</div>
+          <div class="panel-content" id="jobs-panel">
+            <div class="empty-state" style="padding: 20px 10px">
+              <p style="font-size: 13px">No active jobs</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lower Section: Live Logs (Scrollable) -->
+        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+          <div class="panel-header" style="border-top: 1px solid #404040;">Live Agent Logs</div>
+          <div class="panel-content scrollable" id="logs-panel-container" style="flex: 1; overflow-y: auto;">
+            <div id="logs-panel">
+              <div class="empty-state" style="padding: 20px 10px">
+                <p style="font-size: 12px; color: #666">No active jobs to monitor</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Create Workspace Modal -->
+    <div class="modal" id="create-workspace-modal">
+      <div class="modal-content">
+        <h2>Create New Workspace</h2>
+        <form id="create-workspace-form">
+          <div class="form-group">
+            <label>Workspace Name</label>
+            <input
+              type="text"
+              id="workspace-name-input"
+              placeholder="e.g., Creatine Effects"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Initial Variable</label>
+            <input
+              type="text"
+              id="initial-variable-input"
+              placeholder="e.g., Creatine"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Minimum Interactions</label>
+            <input
+              type="number"
+              id="min-interactions-input"
+              value="5"
+              min="1"
+              max="20"
+            />
+          </div>
+          <div class="modal-actions">
+            <button
+              class="btn btn-secondary"
+              type="button"
+              onclick="closeCreateWorkspaceModal()"
+            >
+              Cancel
+            </button>
+            <button class="btn" type="button" onclick="createWorkspace()">
+              Create & Start Search
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
-      let interactions = [];
-      let cy;
-      let currentIntervention = null;
+      let cy = null;
+      let currentWorkspaceId = null;
+      let currentWorkspaceData = null;
+      let pollInterval = null;
+      let selectedNode = null;
+      let currentRunningJobId = null;
+      let eventSource = null;
 
-      // Load interactions from Django API
-      async function loadInteractions() {
+      // Initialize
+      document.addEventListener('DOMContentLoaded', () => {
+        document
+          .getElementById('workspace-select')
+          .addEventListener('change', (e) => {
+            if (e.target.value) {
+              loadWorkspace(parseInt(e.target.value));
+            }
+          });
+
+        // Check if workspace is specified in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const wsId = urlParams.get('ws');
+        if (wsId) {
+          document.getElementById('workspace-select').value = wsId;
+          loadWorkspace(parseInt(wsId));
+        } else {
+          // Auto-load the first workspace (default example) if none specified
+          const select = document.getElementById('workspace-select');
+          if (select.options.length > 1) { // More than just the placeholder
+            const firstWorkspaceId = select.options[1].value;
+            if (firstWorkspaceId) {
+              select.value = firstWorkspaceId;
+              loadWorkspace(parseInt(firstWorkspaceId));
+            }
+          }
+        }
+      });
+
+      function openCreateWorkspaceModal() {
+        document
+          .getElementById('create-workspace-modal')
+          .classList.add('active');
+      }
+
+      function closeCreateWorkspaceModal() {
+        document
+          .getElementById('create-workspace-modal')
+          .classList.remove('active');
+        document.getElementById('create-workspace-form').reset();
+      }
+
+      async function createWorkspace() {
+        console.log('createWorkspace called');
+
+        const name = document.getElementById('workspace-name-input').value.trim();
+        const initialVariable = document
+          .getElementById('initial-variable-input')
+          .value.trim();
+        const minInteractions = parseInt(
+          document.getElementById('min-interactions-input').value
+        );
+
+        console.log('Form values:', { name, initialVariable, minInteractions });
+
+        if (!name || !initialVariable) {
+          alert('Please fill in all fields');
+          return;
+        }
+
+        console.log('Sending request...');
+
         try {
-          const response = await fetch('/scraper/api/interactions/');
-          const data = await response.json();
+          const response = await fetch('/scraper/api/workspace/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: name,
+              initial_variable: initialVariable,
+              min_interactions: minInteractions,
+            }),
+          });
 
-          if (data.interactions && data.interactions.length > 0) {
-            interactions = data.interactions;
-            document.getElementById('loading-indicator').style.display = 'none';
-            document.getElementById('recenter-button').style.display = 'block';
-            initializeGraph();
-            displayInteractions();
-            populateElementsList();
-            resetIntervention();
+          console.log('Response received:', response.status);
+          const data = await response.json();
+          console.log('Response data:', data);
+
+          if (response.ok) {
+            closeCreateWorkspaceModal();
+            // Reload page with the new workspace selected
+            window.location.href = `/scraper/?ws=${data.workspace_id}`;
           } else {
-            document.getElementById('loading-indicator').textContent =
-              'No interactions found. Run the scraper to generate data.';
+            alert('Error: ' + data.error);
           }
         } catch (error) {
-          console.error('Error loading interactions:', error);
-          document.getElementById('loading-indicator').textContent =
-            'Error loading interactions. Please try again.';
+          console.error('Error:', error);
+          alert('Error creating workspace: ' + error.message);
         }
       }
 
-      function initializeGraph() {
-        // Destroy existing graph if it exists
+      async function loadWorkspace(workspaceId) {
+        currentWorkspaceId = workspaceId;
+        document.getElementById('delete-workspace-btn').style.display = 'block';
+
+        try {
+          const response = await fetch(
+            `/scraper/api/workspace/${workspaceId}/`
+          );
+          const data = await response.json();
+
+          currentWorkspaceData = data;
+          renderGraph(data);
+          updateWorkspaceInfo(data);
+          loadJobs(workspaceId);
+          startPolling();
+        } catch (error) {
+          console.error('Error loading workspace:', error);
+          alert('Error loading workspace');
+        }
+      }
+
+      function renderGraph(data) {
+        // Destroy existing graph
         if (cy) {
           cy.destroy();
         }
 
-        const elements = buildGraphElements(interactions);
+        // Clear any previous empty state message
+        const cyContainer = document.getElementById('cy');
+        cyContainer.innerHTML = '';
 
-        cy = cytoscape({
-          container: document.getElementById('cy'),
-          elements: elements,
+        if (data.interactions.length === 0) {
+          cyContainer.innerHTML =
+            '<div class="empty-state"><h2>No Interactions Yet</h2><p>Start a search to discover interactions</p></div>';
+          return;
+        }
 
-          style: [
-            {
-              selector: 'node',
-              style: {
-                width: 24,
-                height: 24,
-                'background-color': '#404040',
-                'border-width': 1,
-                'border-color': '#606060',
-                label: 'data(label)',
-                'font-size': '18px',
-                'font-weight': 'bold',
-                color: '#ffffff',
-                'text-valign': 'bottom',
-                'text-halign': 'center',
-                'text-margin-y': 8,
-                'text-opacity': 1,
-                'text-outline-color': '#1e1e1e',
-                'text-outline-width': 2,
-              },
-            },
-            {
-              selector: 'node.highlighted-increase',
-              style: {
-                'background-color': '#43b581',
-                'border-color': '#43b581',
-                'border-width': 2,
-              },
-            },
-            {
-              selector: 'node.highlighted-decrease',
-              style: {
-                'background-color': '#f04747',
-                'border-color': '#f04747',
-                'border-width': 2,
-              },
-            },
-            {
-              selector: 'edge',
-              style: {
-                width: 1.5,
-                'line-color': 'data(color)',
-                'target-arrow-color': 'data(color)',
-                'target-arrow-shape': 'triangle',
-                'target-arrow-size': 6,
-                'curve-style': 'bezier',
-                opacity: 0.5,
-              },
-            },
-            {
-              selector: 'edge.highlighted',
-              style: {
-                width: 2.5,
-                opacity: 0.9,
-              },
-            },
-          ],
-
-          layout: {
-            name: 'cose',
-            animate: true,
-            animationDuration: 500,
-            nodeRepulsion: 200000,
-            nodeOverlap: 100,
-            idealEdgeLength: 180,
-            edgeElasticity: 100,
-            nestingFactor: 1.2,
-            gravity: 20,
-            numIter: 2500,
-            initialTemp: 1000,
-            coolingFactor: 0.95,
-            minTemp: 1.0,
-            randomize: false,
-          },
-
-          minZoom: 0.1,
-          maxZoom: 3,
-          wheelSensitivity: 0.2,
-        });
-
-        cy.on('tap', 'node', (evt) => highlightNodeConnections(evt.target));
-
-        cy.on('mouseover', 'node', (evt) => {
-          const node = evt.target;
-          node.neighborhood('node').style({
-            'text-outline-width': 3,
-            color: '#ffffff',
-          });
-          node.connectedEdges().style({ opacity: 0.9, width: 2.5 });
-        });
-
-        cy.on('mouseout', 'node', (evt) => {
-          const node = evt.target;
-          node.neighborhood('node').forEach((n) => {
-            if (
-              !n.hasClass('highlighted-increase') &&
-              !n.hasClass('highlighted-decrease')
-            ) {
-              n.style({
-                'text-outline-width': 2,
-                color: '#ffffff',
-              });
-            }
-          });
-          node.connectedEdges().forEach((edge) => {
-            if (!edge.hasClass('highlighted')) {
-              edge.style({ opacity: 0.5, width: 1.5 });
-            }
-          });
-        });
-      }
-
-      function buildGraphElements(interactions) {
+        // Build graph elements
         const nodes = new Set();
         const edges = [];
 
-        interactions.forEach((interaction, idx) => {
+        data.interactions.forEach((interaction, idx) => {
           nodes.add(interaction.independent_variable);
           nodes.add(interaction.dependent_variable);
 
@@ -518,263 +813,468 @@
           data: { id: node, label: node },
         }));
 
-        return [...nodeElements, ...edges];
+        const elements = [...nodeElements, ...edges];
+
+        cy = cytoscape({
+          container: document.getElementById('cy'),
+          elements: elements,
+          style: [
+            {
+              selector: 'node',
+              style: {
+                width: 30,
+                height: 30,
+                'background-color': '#404040',
+                'border-width': 2,
+                'border-color': '#606060',
+                label: 'data(label)',
+                'font-size': '14px',
+                'font-weight': 'bold',
+                color: '#ffffff',
+                'text-valign': 'bottom',
+                'text-halign': 'center',
+                'text-margin-y': 8,
+                'text-outline-color': '#1e1e1e',
+                'text-outline-width': 2,
+              },
+            },
+            {
+              selector: 'node:selected',
+              style: {
+                'background-color': '#5865f2',
+                'border-color': '#5865f2',
+                'border-width': 3,
+              },
+            },
+            {
+              selector: 'edge',
+              style: {
+                width: 2,
+                'line-color': 'data(color)',
+                'target-arrow-color': 'data(color)',
+                'target-arrow-shape': 'triangle',
+                'curve-style': 'bezier',
+                opacity: 0.6,
+              },
+            },
+          ],
+          layout: {
+            name: 'cose',
+            animate: true,
+            animationDuration: 500,
+            nodeRepulsion: 200000,
+            nodeOverlap: 100,
+            idealEdgeLength: 180,
+            edgeElasticity: 100,
+            nestingFactor: 1.2,
+            gravity: 20,
+            numIter: 2500,
+            initialTemp: 1000,
+            coolingFactor: 0.95,
+            minTemp: 1.0,
+            randomize: false,
+          },
+          minZoom: 0.1,
+          maxZoom: 3,
+          wheelSensitivity: 0.2,
+        });
+
+        // Node click handler
+        cy.on('tap', 'node', (evt) => {
+          selectedNode = evt.target.id();
+          showNodeActionPanel(evt.target);
+        });
+
+        // Update counts
+        document.getElementById('node-count').textContent = nodes.size;
+        document.getElementById('edge-count').textContent = edges.length;
+
+        // Show recenter button
+        document.getElementById('recenter-button').style.display = 'block';
       }
 
-      function displayInteractions() {
-        const container = document.getElementById('interactions-content');
-        const grouped = {};
-        const referenceMap = new Map();
-        let refCounter = 1;
+      function showNodeActionPanel(node) {
+        const panel = document.getElementById('node-action-panel');
+        const position = node.renderedPosition();
+        const container = document.getElementById('cy');
+        const containerRect = container.getBoundingClientRect();
 
-        // First pass: assign numbers to unique DOIs
-        interactions.forEach((interaction) => {
-          if (!referenceMap.has(interaction.reference)) {
-            referenceMap.set(interaction.reference, refCounter++);
+        // Account for container position and scroll
+        panel.style.left = (containerRect.left + position.x + 50) + 'px';
+        panel.style.top = (containerRect.top + position.y - 50 + window.scrollY) + 'px';
+        panel.classList.add('active');
+
+        document.getElementById('selected-node-name').textContent = node.id();
+      }
+
+      function closeNodePanel() {
+        document.getElementById('node-action-panel').classList.remove('active');
+        selectedNode = null;
+      }
+
+      function recenterGraph() {
+        if (cy) {
+          cy.fit();
+          cy.center();
+        }
+      }
+
+      async function expandNode() {
+        if (!selectedNode || !currentWorkspaceId) return;
+
+        const minInteractions = parseInt(
+          document.getElementById('expand-min-interactions').value
+        );
+
+        try {
+          const response = await fetch(
+            `/scraper/api/workspace/${currentWorkspaceId}/expand/`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                variable: selectedNode,
+                min_interactions: minInteractions,
+              }),
+            }
+          );
+
+          const data = await response.json();
+
+          if (response.ok) {
+            closeNodePanel();
+            alert(`Started searching for interactions with "${selectedNode}"`);
+            loadJobs(currentWorkspaceId);
+          } else {
+            alert('Error: ' + data.error);
           }
-        });
-
-        interactions.forEach((interaction) => {
-          const key = `${interaction.independent_variable}→${interaction.dependent_variable}`;
-          if (!grouped[key]) {
-            grouped[key] = [];
-          }
-          grouped[key].push(interaction);
-        });
-
-        let html = '';
-        Object.entries(grouped).forEach(([key, items]) => {
-          const [iv, dv] = key.split('→');
-          const effect = items[0].effect === '+' ? 'increases' : 'decreases';
-          const effectClass =
-            items[0].effect === '+' ? 'effect-increase' : 'effect-decrease';
-
-          html += `<div class="interaction-item">
-                <span class="${effectClass}">${iv} ${effect} ${dv} `;
-
-          items.forEach((item, idx) => {
-            if (idx > 0) html += ', ';
-            const refNum = referenceMap.get(item.reference);
-            html += `<a href="https://doi.org/${item.reference}" target="_blank" class="reference-link" title="${item.reference}">[${refNum}]</a>`;
-          });
-
-          html += `</span></div>`;
-        });
-
-        container.innerHTML =
-          html || '<div class="empty-state">No interactions to display</div>';
+        } catch (error) {
+          alert('Error expanding node: ' + error.message);
+        }
       }
 
-      function populateElementsList() {
-        const elements = new Set();
-        interactions.forEach((i) => {
-          elements.add(i.independent_variable);
-          elements.add(i.dependent_variable);
-        });
-
-        const datalist = document.getElementById('elements-list');
-        datalist.innerHTML = Array.from(elements)
-          .map((el) => `<option value="${el}">`)
-          .join('');
+      function updateWorkspaceInfo(data) {
+        document.getElementById('workspace-info').style.display = 'block';
+        document.getElementById('workspace-name').textContent =
+          data.workspace.name;
+        document.getElementById('initial-variable').textContent =
+          data.workspace.initial_variable;
       }
 
-      function applyIntervention() {
-        const type = document.getElementById('intervention-type').value;
-        const element = document
-          .getElementById('intervention-element')
-          .value.trim();
+      async function loadJobs(workspaceId) {
+        try {
+          const response = await fetch(
+            `/scraper/api/workspace/${workspaceId}/jobs/`
+          );
+          const data = await response.json();
 
-        if (!element || (type === 'increase' && !type)) {
-          alert('Please select intervention type and element');
+          renderJobs(data.jobs);
+        } catch (error) {
+          console.error('Error loading jobs:', error);
+        }
+      }
+
+      function renderJobs(jobs) {
+        const panel = document.getElementById('jobs-panel');
+
+        if (jobs.length === 0) {
+          panel.innerHTML =
+            '<div class="empty-state" style="padding: 20px 10px;"><p style="font-size: 13px;">No active jobs</p></div>';
+          currentRunningJobId = null;
+          stopJobStream();
+          updateLogsPanel(null);
           return;
         }
 
-        currentIntervention = { type, element };
+        // Find the first running job
+        const runningJob = jobs.find(j => j.status === 'running');
+        if (runningJob && runningJob.id !== currentRunningJobId) {
+          currentRunningJobId = runningJob.id;
+          startJobStream(runningJob.id);
+        } else if (!runningJob) {
+          currentRunningJobId = null;
+          stopJobStream();
+          updateLogsPanel(null);
+        }
 
-        cy.nodes().removeClass('highlighted-increase highlighted-decrease');
-        cy.edges().removeClass('highlighted');
+        // Show only the most recent or running job
+        const displayJob = runningJob || jobs[0];
 
-        const affected = calculateAffectedElements(element, type);
-        visualizeIntervention(element, type, affected);
-        displayAffectedElements(element, type, affected);
+        let html = `
+          <div class="job-item">
+            <div class="job-header">
+              <div class="job-variable">${displayJob.variable_of_interest}</div>
+              <span class="status-badge status-${displayJob.status}">${displayJob.status}</span>
+            </div>
+            <div class="job-stats" style="margin-top: 8px;">
+              <div style="margin-bottom: 4px;">Found: <strong>${displayJob.interactions_found}</strong> interactions</div>
+              <div>Papers: <strong>${displayJob.papers_checked}</strong> checked</div>
+            </div>
+            ${
+              displayJob.status === 'running'
+                ? `<button class="btn btn-danger" style="width: 100%; margin-top: 10px; font-size: 12px; padding: 8px;" onclick="stopJob(${displayJob.id})">⏹ Stop Job</button>`
+                : ''
+            }
+          </div>
+        `;
+
+        panel.innerHTML = html;
       }
 
-      function calculateAffectedElements(startElement, interventionType) {
-        const affected = new Map();
-        const queue = [
-          {
-            element: startElement,
-            effect: interventionType,
-            path: [startElement],
-          },
-        ];
-        const visited = new Set();
+      function parseLogToBox(logLine) {
+        // Parse log format: [HH:MM:SS] [STEP] Message
+        const match = logLine.match(/\[(\d{2}:\d{2}:\d{2})\] \[([A-Z]+)\] (.+)/);
+        if (!match) return null;
 
-        while (queue.length > 0) {
-          const { element, effect, path } = queue.shift();
-          const key = `${element}-${effect}`;
+        const [, time, step, message] = match;
 
-          if (visited.has(key)) continue;
-          visited.add(key);
+        let boxClass = 'log-box-status';
+        let emoji = '•';
 
-          const outgoingEdges = interactions.filter(
-            (i) => i.independent_variable === element
+        // Determine box type and emoji based on step and message
+        if (step === 'QUERY') {
+          boxClass = 'log-box-query';
+          emoji = '🔍';
+        } else if (step === 'PUBMED') {
+          boxClass = 'log-box-pubmed';
+          emoji = '📚';
+        } else if (step === 'ABSTRACT') {
+          if (message.includes('✓') || message.includes('relevant!')) {
+            boxClass = 'log-box-success';
+            emoji = '✓';
+          } else if (message.includes('✗') || message.includes('Not relevant')) {
+            boxClass = 'log-box-fail';
+            emoji = '✗';
+          } else {
+            boxClass = 'log-box-abstract';
+            emoji = '📄';
+          }
+        } else if (step === 'DOWNLOAD') {
+          if (message.includes('✓')) {
+            boxClass = 'log-box-success';
+            emoji = '✓';
+          } else if (message.includes('✗')) {
+            boxClass = 'log-box-fail';
+            emoji = '✗';
+          } else {
+            boxClass = 'log-box-download';
+            emoji = '📥';
+          }
+        } else if (step === 'CONVERT') {
+          boxClass = 'log-box-download';
+          emoji = '📄';
+        } else if (step === 'EXTRACT') {
+          if (message.includes('💾') || message.includes('Found interaction')) {
+            boxClass = 'log-box-success';
+            emoji = '💾';
+          } else if (message.includes('✗')) {
+            boxClass = 'log-box-fail';
+            emoji = '✗';
+          } else {
+            boxClass = 'log-box-extract';
+            emoji = '🔬';
+          }
+        } else if (step === 'STATUS') {
+          boxClass = 'log-box-status';
+          emoji = '📊';
+        } else if (step === 'FILTER') {
+          boxClass = 'log-box-status';
+          emoji = '🔎';
+        }
+
+        // Convert DOI to clickable link
+        let displayMessage = message.replace(/10\.\d{4,}\/[^\s]+/g, (doi) => {
+          return `<a href="https://doi.org/${doi}" target="_blank">${doi}</a>`;
+        });
+
+        return { boxClass, emoji, message: displayMessage, time };
+      }
+
+      function updateLogsPanel(jobData) {
+        const panel = document.getElementById('logs-panel');
+
+        if (!jobData || jobData.status !== 'running') {
+          panel.innerHTML = '<div class="empty-state" style="padding: 20px 10px;"><p style="font-size: 12px; color: #666;">No active jobs to monitor</p></div>';
+          return;
+        }
+
+        let html = '<div class="log-viewer">';
+
+        if (jobData.logs) {
+          const logLines = jobData.logs.trim().split('\n');
+          let previousStep = null;
+
+          logLines.forEach((line, index) => {
+            if (!line.trim()) return;
+            const box = parseLogToBox(line);
+            if (box) {
+              // Detect paper boundaries: when we start checking a new abstract after a previous conclusion
+              const currentStep = line.match(/\[([A-Z]+)\]/)?.[1];
+              const isNewPaper = currentStep === 'ABSTRACT' &&
+                                 previousStep &&
+                                 (previousStep === 'ABSTRACT' ||
+                                  previousStep === 'EXTRACT' ||
+                                  previousStep === 'DOWNLOAD');
+
+              if (isNewPaper && index > 0) {
+                html += '<div class="paper-divider"></div>';
+              }
+
+              html += `<div class="${box.boxClass}">
+                <span class="emoji">${box.emoji}</span>
+                ${box.message}
+              </div>`;
+
+              previousStep = currentStep;
+            }
+          });
+        }
+
+        html += '</div>';
+
+        panel.innerHTML = html;
+
+        // Auto-scroll the logs panel container to bottom
+        const logsContainer = document.getElementById('logs-panel-container');
+        if (logsContainer) {
+          logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+      }
+
+      function startJobStream(jobId) {
+        // Close existing connection
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+
+        // Start SSE connection
+        eventSource = new EventSource(`/scraper/api/job/${jobId}/status/stream/`);
+
+        let fullLogs = '';
+
+        eventSource.onmessage = function(event) {
+          const data = JSON.parse(event.data);
+
+          // Append new logs
+          fullLogs += data.logs;
+
+          // Update job info and logs display
+          updateLogsPanel({
+            status: data.status,
+            logs: fullLogs,
+            current_step: data.current_step
+          });
+
+          // Update stats in job panel
+          const statsDiv = document.querySelector('.job-stats');
+          if (statsDiv) {
+            statsDiv.innerHTML = `
+              <div class="stat-item">
+                <span class="stat-label">Papers Checked:</span>
+                <span class="stat-value">${data.papers_checked}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Interactions Found:</span>
+                <span class="stat-value">${data.interactions_found}</span>
+              </div>
+            `;
+          }
+
+          // If job finished, close connection and reload
+          if (data.status === 'completed' || data.status === 'failed') {
+            eventSource.close();
+            eventSource = null;
+            currentRunningJobId = null;
+
+            // Reload workspace data to show new interactions
+            if (currentWorkspaceId) {
+              loadWorkspace(currentWorkspaceId);
+              loadJobs(currentWorkspaceId);
+            }
+          }
+        };
+
+        eventSource.onerror = function(error) {
+          console.error('SSE Error:', error);
+          eventSource.close();
+          eventSource = null;
+        };
+      }
+
+      function stopJobStream() {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+      }
+
+      async function stopJob(jobId) {
+        try {
+          const response = await fetch(`/scraper/api/job/${jobId}/stop/`, {
+            method: 'POST',
+          });
+
+          const data = await response.json();
+          if (response.ok) {
+            alert(data.message);
+            loadJobs(currentWorkspaceId);
+          }
+        } catch (error) {
+          console.error('Error stopping job:', error);
+        }
+      }
+
+      async function deleteWorkspace() {
+        if (!currentWorkspaceId) return;
+
+        if (
+          !confirm(
+            'Are you sure you want to delete this workspace? All data will be lost.'
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `/scraper/api/workspace/${currentWorkspaceId}/delete/`,
+            {
+              method: 'POST',
+            }
           );
 
-          outgoingEdges.forEach((edge) => {
-            const targetEffect = combineEffects(effect, edge.effect);
-            const newPath = [...path, edge.dependent_variable];
-
-            if (!affected.has(edge.dependent_variable)) {
-              affected.set(edge.dependent_variable, {
-                effect: targetEffect,
-                paths: [],
-              });
-            }
-
-            affected.get(edge.dependent_variable).paths.push({
-              path: newPath,
-              reference: edge.reference,
-            });
-
-            if (newPath.length < 5) {
-              queue.push({
-                element: edge.dependent_variable,
-                effect: targetEffect,
-                path: newPath,
-              });
-            }
-          });
-        }
-
-        return affected;
-      }
-
-      function combineEffects(interventionEffect, edgeEffect) {
-        if (interventionEffect === 'increase') {
-          return edgeEffect === '+' ? 'increase' : 'decrease';
-        } else {
-          return edgeEffect === '+' ? 'decrease' : 'increase';
-        }
-      }
-
-      function visualizeIntervention(element, type, affected) {
-        const node = cy.getElementById(element);
-        const className =
-          type === 'increase' ? 'highlighted-increase' : 'highlighted-decrease';
-        node.addClass(className);
-
-        affected.forEach((info, targetElement) => {
-          const targetNode = cy.getElementById(targetElement);
-          const affectedClass =
-            info.effect === 'increase'
-              ? 'highlighted-increase'
-              : 'highlighted-decrease';
-          targetNode.addClass(affectedClass);
-
-          info.paths.forEach((pathInfo) => {
-            for (let i = 0; i < pathInfo.path.length - 1; i++) {
-              const edges = cy.edges(
-                `[source="${pathInfo.path[i]}"][target="${
-                  pathInfo.path[i + 1]
-                }"]`
-              );
-              edges.addClass('highlighted');
-            }
-          });
-        });
-      }
-
-      function displayAffectedElements(element, type, affected) {
-        const panel = document.getElementById('affected-panel');
-        const container = document.getElementById('affected-content');
-
-        panel.style.display = 'block';
-
-        let html = `<div class="affected-item"><strong>Intervention:</strong> ${type} ${element}</div>`;
-
-        affected.forEach((info, targetElement) => {
-          const effectText =
-            info.effect === 'increase' ? 'increased' : 'decreased';
-          const effectClass =
-            info.effect === 'increase' ? 'effect-increase' : 'effect-decrease';
-
-          html += `<div class="affected-item">
-                <span class="${effectClass}">${targetElement} ${effectText}</span><br>`;
-
-          info.paths.forEach((pathInfo, idx) => {
-            const pathStr = pathInfo.path.join(' → ');
-            html += `<small>Path ${idx + 1}: ${pathStr}</small>
-                        <a href="https://doi.org/${
-                          pathInfo.reference
-                        }" target="_blank" class="doi-link">[${
-              pathInfo.reference
-            }]</a><br>`;
-          });
-
-          html += `</div>`;
-        });
-
-        container.innerHTML = html;
-      }
-
-      function resetIntervention() {
-        currentIntervention = null;
-        if (cy) {
-          cy.nodes().removeClass('highlighted-increase highlighted-decrease');
-          cy.nodes().style({ 'border-width': 1 });
-          cy.edges().removeClass('highlighted');
-          cy.edges().style({ opacity: 0.5, width: 1.5 });
-        }
-        document.getElementById('intervention-element').value = '';
-        document.getElementById('affected-panel').style.display = 'none';
-      }
-
-      function highlightNodeConnections(node) {
-        cy.edges().removeClass('highlighted');
-        const connectedEdges = node.connectedEdges();
-        connectedEdges.addClass('highlighted');
-      }
-
-      document
-        .getElementById('apply-intervention')
-        .addEventListener('click', applyIntervention);
-      document
-        .getElementById('reset-intervention')
-        .addEventListener('click', resetIntervention);
-
-      // Collapse/expand functionality
-      let isCollapsed = false;
-      document
-        .getElementById('collapse-toggle')
-        .addEventListener('click', () => {
-          isCollapsed = !isCollapsed;
-          const rightPanel = document.getElementById('right-panel');
-          const toggle = document.getElementById('collapse-toggle');
-
-          rightPanel.classList.toggle('collapsed', isCollapsed);
-          toggle.textContent = isCollapsed ? '▶' : '◀';
-
-          setTimeout(() => {
-            if (cy) {
-              cy.resize();
-              cy.fit();
-            }
-          }, 320);
-        });
-
-      // Recenter button functionality
-      document
-        .getElementById('recenter-button')
-        .addEventListener('click', () => {
-          if (cy) {
-            cy.fit();
-            cy.center();
+          if (response.ok) {
+            window.location.reload();
           }
-        });
+        } catch (error) {
+          alert('Error deleting workspace');
+        }
+      }
 
-      // Initialize by loading interactions
-      loadInteractions();
+      function startPolling() {
+        if (pollInterval) clearInterval(pollInterval);
+
+        pollInterval = setInterval(() => {
+          if (currentWorkspaceId) {
+            // Reload workspace data
+            fetch(`/scraper/api/workspace/${currentWorkspaceId}/`)
+              .then((r) => r.json())
+              .then((data) => {
+                if (
+                  JSON.stringify(data.interactions) !==
+                  JSON.stringify(currentWorkspaceData.interactions)
+                ) {
+                  currentWorkspaceData = data;
+                  renderGraph(data);
+                }
+              });
+
+            // Reload jobs (SSE handles real-time log updates)
+            loadJobs(currentWorkspaceId);
+          }
+        }, 2000);
+      }
     </script>
   </body>
 </html>

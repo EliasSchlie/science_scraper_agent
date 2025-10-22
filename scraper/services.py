@@ -33,6 +33,7 @@ class ScraperService:
         self.pubmed_api = PubMedAPI()
         self.pdf_from_doi = PDFFromDOI()
         self._stopped = False
+        self.variable_of_interest = self.job.variable_of_interest
 
     class JobStoppedException(Exception):
         pass
@@ -47,18 +48,31 @@ class ScraperService:
     
     def update_status(self, step: str, message: str = ""):
         """Update job status and add to logs"""
+        import time
+        timestamp = time.strftime("%H:%M:%S")
         log_message = f"[{step}] {message}"
         print(f"[Job {self.job.id}] {log_message}")
         self.job.add_log(log_message)
     
     def add_interaction(self, iv: str, dv: str, effect: str, doi: str, pub_date: str):
-        """Add interaction to database"""
+        """Add interaction to database - only if variable_of_interest matches IV or DV exactly"""
         normalized = self._normalize_effect(effect)
         if normalized is None:
             # Skip non +/- effects
             self.update_status("EXTRACT", f"✗ Skipping interaction with invalid effect '{effect}'")
             return
+        
+        # CRITICAL: Only add if variable_of_interest appears as IV or DV with exact wording
+        if iv != self.variable_of_interest and dv != self.variable_of_interest:
+            self.update_status("EXTRACT", f"✗ Skipping: '{self.variable_of_interest}' not in interaction ({iv} → {dv})")
+            return
+        
+        if not self.job.workspace:
+            self.update_status("EXTRACT", f"✗ No workspace associated with this job")
+            return
+            
         Interaction.objects.create(
+            workspace=self.job.workspace,
             independent_variable=iv,
             dependent_variable=dv,
             effect=normalized,
@@ -175,9 +189,11 @@ class ScraperService:
     # Node functions (adapted from paperfinder.py)
     def _create_query(self, state: GraphState) -> dict:
         """AI creates PubMed query from variable of interest"""
+        import time
+        start = time.time()
         self._check_stopped()
         tried = state.get("tried_queries", [])
-        
+
         if tried:
             self.update_status("QUERY", f"Creating new query (tried {len(tried)} already)")
             previous_queries_text = "\n".join([f"  {i+1}. {q}" for i, q in enumerate(tried)])
@@ -192,15 +208,16 @@ Create a concise PubMed search query for intervention studies on human substrate
             self.update_status("QUERY", f"Creating query for: {state['variable_of_interest']}")
             prompt = f"""Variable of interest: {state['variable_of_interest']}
 Create a concise PubMed search query for finding intervention studies on human substrate about this variable."""
-        
+
         response = self.llm.invoke([
             SystemMessage(content="You are an expert at crafting PubMed search queries for human intervention studies."),
             HumanMessage(content=prompt)
         ])
-        
+        elapsed = time.time() - start
+
         query = response.content.strip()
-        self.update_status("QUERY", f"Generated: {query}")
-        
+        self.update_status("QUERY", f"Generated: {query} ({elapsed:.1f}s)")
+
         return {"query": query, "tried_queries": [query]}
     
     def _search_pubmed(self, state: GraphState) -> dict:
@@ -221,144 +238,254 @@ Create a concise PubMed search query for finding intervention studies on human s
     
     def _check_abstract(self, state: GraphState) -> dict:
         """AI checks if abstract is relevant"""
+        import time
         self._check_stopped()
         if not state["papers"]:
             return {"current_paper": {}}
-        
+
         paper = state["papers"][0]
         remaining = state["papers"][1:]
-        
+
         # Show full title in logs
         title = paper.get('title', 'No title')
-        self.update_status("ABSTRACT", f"Checking paper: '{title}'")
-        
+        self.update_status("ABSTRACT", f"Checking paper: '{title[:80]}...'")
+
+        start = time.time()
         response = self.llm.invoke([
             SystemMessage(content=f"You are evaluating if this paper is relevant to: {state['variable_of_interest']}. Check if it's an intervention study on human substrate. Reply with 'yes' or 'no'."),
             HumanMessage(content=f"Title: {paper.get('title', '')}\n\nAbstract: {paper.get('abstract', '')}")
         ])
-        
+        elapsed = time.time() - start
+
         is_relevant = response.content.strip().lower() in ["yes", "y"]
-        
+
         if is_relevant:
-            self.update_status("ABSTRACT", f"✓ Paper is relevant! Will download.")
+            self.update_status("ABSTRACT", f"✓ Paper is relevant! Will download. ({elapsed:.1f}s)")
             return {"papers": remaining, "current_paper": paper, "checked_dois": [paper.get("doi", "")]}
         else:
-            self.update_status("ABSTRACT", f"✗ Not relevant. Skipping.")
+            self.update_status("ABSTRACT", f"✗ Not relevant. Skipping. ({elapsed:.1f}s)")
             return {"papers": remaining, "current_paper": {}, "checked_dois": [paper.get("doi", "")]}
     
     def _download_paper(self, state: GraphState) -> dict:
         """Download paper PDF and convert to markdown"""
+        import time
         self._check_stopped()
         paper = state["current_paper"]
         doi = paper.get("doi")
-        
+
         if not doi:
             return {"paper_md": "", "current_paper": {}}
-        
+
         self.update_status("DOWNLOAD", f"📥 Downloading PDF for DOI: {doi}")
-        
+
         try:
-            path = self.pdf_from_doi.download(doi)
-            self.update_status("DOWNLOAD", f"✓ PDF downloaded successfully")
+            start = time.time()
+            self.update_status("DOWNLOAD", f"🔍 Looking up PDF location...")
+
+            # Pass callback for progress updates
+            def progress_callback(message):
+                self.update_status("DOWNLOAD", message)
+
+            path = self.pdf_from_doi.download(doi, progress_callback=progress_callback)
+            elapsed = time.time() - start
+            self.update_status("DOWNLOAD", f"✓ PDF downloaded successfully ({elapsed:.1f}s)")
+
             self.update_status("CONVERT", f"📄 Converting PDF to text...")
+            start = time.time()
             md = pymupdf4llm.to_markdown(str(path))
-            self.update_status("CONVERT", f"✓ Converted to text ({len(md):,} characters)")
+            elapsed = time.time() - start
+            self.update_status("CONVERT", f"✓ Converted to text ({len(md):,} chars in {elapsed:.1f}s)")
             return {"paper_md": md}
         except FileNotFoundError as e:
-            self.update_status("DOWNLOAD", f"✗ Paper is paywalled (not open access). Skipping.")
+            self.update_status("DOWNLOAD", f"✗ Paper is paywalled or not available. Skipping.")
+            return {"paper_md": "", "current_paper": {}}
+        except RuntimeError as e:
+            self.update_status("DOWNLOAD", f"✗ Download error: {str(e)}")
             return {"paper_md": "", "current_paper": {}}
         except Exception as e:
-            self.update_status("DOWNLOAD", f"✗ Download failed: {str(e)}")
+            self.update_status("DOWNLOAD", f"✗ Unexpected error: {str(e)[:100]}")
             return {"paper_md": "", "current_paper": {}}
     
     def _extract_interactions(self, state: GraphState) -> dict:
         """AI extracts interactions from paper"""
+        import time
+        from pydantic import BaseModel, Field
+        extraction_start = time.time()
         self._check_stopped()
         if not state["paper_md"]:
             return {"interactions_count": state.get("interactions_count", 0), "current_paper": {}, "paper_md": ""}
-        
-        self.update_status("EXTRACT", "Extracting interactions")
-        
+
+        self.update_status("EXTRACT", "🔍 Extracting interactions from paper...")
+
         doi = state['current_paper'].get('doi', '')
         pub_date = state['current_paper'].get('pub_date', '')
-        
+        variable_of_interest = state['variable_of_interest']
+
         extraction_complete = False
-        
-        # Create tools
-        @tool
-        def submit_interactions(interactions: list[dict]) -> str:
-            """Submit extracted interactions"""
-            count = 0
+        accepted_count = 0
+
+        # Define structured schemas for tool inputs
+        class Interaction(BaseModel):
+            """A single causal interaction from an experiment"""
+            independent_variable: str = Field(..., description="The variable that was manipulated (IV)")
+            dependent_variable: str = Field(..., description="The variable that was measured (DV)")
+            effect: str = Field(..., description="Effect direction: '+' for increase, '-' for decrease")
+
+        class InteractionList(BaseModel):
+            """List of interactions to submit"""
+            interactions: list[Interaction] = Field(..., description="List of extracted interactions")
+
+        # Create tools with proper validation
+        @tool(args_schema=InteractionList)
+        def submit_interactions(interactions: list[Interaction]) -> str:
+            """Submit extracted causal interactions for validation.
+
+            IMPORTANT: Only submit interactions where the variable of interest appears as EITHER:
+            - The independent_variable (IV), OR
+            - The dependent_variable (DV)
+
+            Use EXACT wording from the paper for variable names.
+            """
+            nonlocal accepted_count
+            results = []
+            submitted = len(interactions)
+            accepted = 0
+
             for interaction in interactions:
-                self.add_interaction(
-                    interaction['iv'],
-                    interaction['dv'],
-                    interaction['effect'],
-                    doi,
-                    pub_date
-                )
-                count += 1
-            return f"{count} interaction(s) submitted successfully."
-        
+                iv = interaction.independent_variable.strip()
+                dv = interaction.dependent_variable.strip()
+                effect = interaction.effect.strip()
+
+                # Validate effect format
+                normalized = self._normalize_effect(effect)
+                if normalized is None:
+                    results.append(f"❌ REJECTED: {iv} → {dv} | Reason: Invalid effect '{effect}'. Use '+' for increase or '-' for decrease.")
+                    continue
+
+                # Check if variable of interest is present
+                if iv != variable_of_interest and dv != variable_of_interest:
+                    results.append(f"❌ REJECTED: {iv} → {dv} | Reason: Variable of interest '{variable_of_interest}' must appear as either IV or DV with EXACT wording. You used: IV='{iv}', DV='{dv}'.")
+                    continue
+
+                # Check workspace exists
+                if not self.job.workspace:
+                    results.append(f"❌ REJECTED: {iv} → {dv} | Reason: No workspace associated with this job.")
+                    continue
+
+                # Accept and store the interaction
+                try:
+                    from scraper.models import Interaction as InteractionModel
+                    InteractionModel.objects.create(
+                        workspace=self.job.workspace,
+                        independent_variable=iv,
+                        dependent_variable=dv,
+                        effect=normalized,
+                        reference=doi,
+                        date_published=pub_date
+                    )
+                    self.job.interactions_found += 1
+                    self.job.save(update_fields=['interactions_found'])
+                    accepted += 1
+                    accepted_count += 1
+                    results.append(f"✅ ACCEPTED: {iv} → {dv} ({normalized})")
+                    self.update_status("EXTRACT", f"💾 Stored: {iv} → {dv} ({normalized})")
+                except Exception as e:
+                    results.append(f"❌ ERROR: {iv} → {dv} | Reason: Database error - {str(e)}")
+
+            summary = f"\n\n📊 BATCH SUMMARY: Submitted {submitted}, Accepted {accepted}, Rejected {submitted - accepted}"
+            if accepted < submitted:
+                summary += f"\n\n💡 TIP: Review the rejection reasons above. Make sure '{variable_of_interest}' appears EXACTLY as either the IV or DV in each interaction."
+
+            return "\n".join(results) + summary
+
         @tool
         def finish_extraction() -> str:
-            """Call when finished extracting"""
+            """Call this when you have finished extracting ALL interactions from the paper.
+
+            Only call this after you have submitted all interactions you found.
+            """
             nonlocal extraction_complete
             extraction_complete = True
-            return "Extraction complete."
-        
+            return f"✓ Extraction finished. Total accepted interactions: {accepted_count}"
+
         llm_with_tools = self.llm.bind_tools([submit_interactions, finish_extraction])
-        
-        initial_prompt = f"""Analyze this paper and extract ALL intervention studies on human substrate.
 
-Variable of interest: {state['variable_of_interest']}
+        initial_prompt = f"""You are analyzing a scientific paper to extract causal interactions involving a specific variable of interest.
 
-For each experiment:
-- Independent variable (IV): what was manipulated
-- Dependent variable (DV): what was measured
-- Effect: '+' if IV increases DV, '-' if IV decreases DV
+**VARIABLE OF INTEREST:** "{variable_of_interest}"
 
-Call submit_interactions with your findings, then call finish_extraction when done.
+**YOUR TASK:**
+Extract ALL causal relationships (IV → DV) from human intervention studies where "{variable_of_interest}" appears as EITHER the independent variable (IV) OR the dependent variable (DV).
 
-Paper content:
-{state['paper_md']}"""
-        
+**CRITICAL RULES:**
+1. The variable of interest CAN be the IV (what was manipulated)
+2. The variable of interest CAN be the DV (what was measured)
+3. Use EXACT wording from the paper for variable names
+4. Effect must be '+' (increase) or '-' (decrease)
+5. ONLY extract interactions where "{variable_of_interest}" is the IV or DV
+
+**EXAMPLES:**
+✅ VALID if variable of interest is "Exercise":
+   - IV: "Exercise", DV: "Muscle Mass", Effect: "+"
+   - IV: "Creatine", DV: "Exercise", Effect: "+"
+
+❌ INVALID if variable of interest is "Exercise":
+   - IV: "Creatine", DV: "Muscle Mass", Effect: "+" (Exercise not present)
+
+**WORKFLOW:**
+1. Find all causal relationships in the paper
+2. Filter for ones involving "{variable_of_interest}"
+3. Call submit_interactions() with your findings
+4. Review the feedback - resubmit rejected interactions with corrections if needed
+5. Call finish_extraction() when done
+
+Paper text:
+{state['paper_md'][:50000]}"""
+
         messages = [
-            SystemMessage(content="Extract ALL causal relationships. Call submit_interactions then finish_extraction."),
+            SystemMessage(content="You are a precise scientific data extractor. Follow the rules exactly and learn from validation feedback."),
             HumanMessage(content=initial_prompt)
         ]
-        
+
         count = state.get("interactions_count", 0)
         max_iterations = 20
         iteration = 0
-        
+
         while not extraction_complete and iteration < max_iterations:
             self._check_stopped()
             iteration += 1
             response = llm_with_tools.invoke(messages)
             messages.append(response)
-            
+
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 tool_messages = []
                 for tool_call in response.tool_calls:
                     tool_name = tool_call['name']
-                    
+
                     if tool_name == 'submit_interactions':
                         try:
-                            result = submit_interactions.invoke(tool_call['args'])
-                            count += len(tool_call['args'].get('interactions', []))
+                            # Parse interactions from args
+                            args = tool_call['args']
+                            interactions_data = args.get('interactions', [])
+
+                            # Convert to Interaction objects
+                            interactions = [Interaction(**i) for i in interactions_data]
+
+                            # Invoke tool with structured data
+                            result = submit_interactions.invoke({"interactions": interactions})
                             tool_messages.append({
                                 "role": "tool",
                                 "content": result,
                                 "tool_call_id": tool_call['id']
                             })
                         except Exception as e:
+                            error_msg = f"❌ TOOL ERROR: Could not parse your submission.\n\nExpected format:\n{{\n  \"interactions\": [\n    {{\n      \"independent_variable\": \"string\",\n      \"dependent_variable\": \"string\",\n      \"effect\": \"+\" or \"-\"\n    }}\n  ]\n}}\n\nError details: {str(e)}\n\nPlease fix the format and try again."
                             tool_messages.append({
                                 "role": "tool",
-                                "content": f"Error: {e}",
+                                "content": error_msg,
                                 "tool_call_id": tool_call['id']
                             })
-                    
+
                     elif tool_name == 'finish_extraction':
                         result = finish_extraction.invoke({})
                         tool_messages.append({
@@ -366,13 +493,15 @@ Paper content:
                             "content": result,
                             "tool_call_id": tool_call['id']
                         })
-                
+
                 for tm in tool_messages:
                     messages.append(ToolMessage(content=tm["content"], tool_call_id=tm["tool_call_id"]))
             else:
-                messages.append(HumanMessage(content="Continue or call finish_extraction."))
-        
-        return {"interactions_count": count, "current_paper": {}, "paper_md": ""}
+                messages.append(HumanMessage(content="Please continue extracting interactions or call finish_extraction() if you're done."))
+
+        extraction_elapsed = time.time() - extraction_start
+        self.update_status("EXTRACT", f"✓ Extraction complete: {accepted_count} interactions in {extraction_elapsed:.1f}s ({iteration} iterations)")
+        return {"interactions_count": count + accepted_count, "current_paper": {}, "paper_md": ""}
     
     # Routing functions
     def _route_after_abstract(self, state: GraphState) -> Literal["download_paper", "check_abstract", "create_query"]:

@@ -7,6 +7,7 @@ import pymupdf4llm
 from dotenv import load_dotenv
 load_dotenv()
 
+
 # Relative imports for Django app
 from .pubmed import PubMedAPI
 from .doi2pdf import PDFFromDOI
@@ -15,6 +16,8 @@ from .interaction_storage import InteractionStorage
 
 
 llm = ChatNebius(model="moonshotai/Kimi-K2-Instruct")
+# llm = ChatNebius(model="Qwen/Qwen3-235B-A22B-Instruct-2507")
+# reasoning_llm = ChatNebius(model="deepseek-ai/DeepSeek-R1-0528")
 pubmed_api = PubMedAPI()
 pdf_from_doi = PDFFromDOI()
 interaction_storage = InteractionStorage()

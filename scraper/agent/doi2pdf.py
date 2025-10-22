@@ -23,38 +23,66 @@ class PDFFromDOI:
         self.brightdata_api_key = brightdata_api_key or os.environ.get("BRIGHT_WEB_UNLOCKER_KEY")
         self.unpaywall_email = unpaywall_email
 
-    def download(self, doi: str, filename: str = None) -> Optional[str]:
+    def download(self, doi: str, filename: str = None, progress_callback=None) -> Optional[str]:
+        def log(msg):
+            if progress_callback:
+                progress_callback(msg)
+            print(msg)
+
         path = os.path.join(self.output_dir, f"{self._sanitize_filename(filename or doi)}.pdf")
-        
+
         # Try arXiv direct download first if it's an arXiv DOI
         if self._is_arxiv_doi(doi):
+            log("📋 Detected arXiv DOI, trying direct download...")
             pdf_url = self._get_arxiv_pdf_url(doi)
             if pdf_url and self._download_pdf_direct(pdf_url, path):
                 self._validate_pdf(path)
                 return path
-        
+
         # Fallback to Unpaywall
-        pdf_url = self._get_pdf_url_from_unpaywall(doi)
+        log("🔍 Querying Unpaywall API...")
+        try:
+            pdf_url = self._get_pdf_url_from_unpaywall(doi)
+            log(f"✓ Found PDF URL: {pdf_url[:50]}...")
+        except Exception as e:
+            log(f"✗ Unpaywall failed: {str(e)}")
+            raise
+
         if not pdf_url:
             raise FileNotFoundError(f"No open-access PDF found for DOI: {doi}")
+
         # Try Bright Data first, fallback to direct download
-        if self._download_pdf_via_brightdata(pdf_url, path):
+        if self.brightdata_api_key:
+            log("📥 Attempting download via Bright Data...")
+            if self._download_pdf_via_brightdata(pdf_url, path):
+                self._validate_pdf(path)
+                return path
+            log("✗ Bright Data failed, trying direct download...")
+
+        log("📥 Attempting direct download...")
+        if self._download_pdf_direct(pdf_url, path):
             self._validate_pdf(path)
             return path
-        elif self._download_pdf_direct(pdf_url, path):
-            self._validate_pdf(path)
-            return path
+
         raise RuntimeError(f"Failed to download PDF from: {pdf_url}")
 
     def _get_pdf_url_from_unpaywall(self, doi: str) -> str:
         base = "https://api.unpaywall.org/v2/"
         url = f"{base}{urllib.parse.quote(doi)}?{urllib.parse.urlencode({'email': self.unpaywall_email})}"
         req = urllib.request.Request(url)
+        req.add_header('User-Agent', 'Mozilla/5.0')
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            # Reduced timeout to 5 seconds - Unpaywall should be fast
+            with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-        except Exception as e:
+        except urllib.error.URLError as e:
+            if hasattr(e, 'reason'):
+                raise RuntimeError(f"Unpaywall connection failed: {e.reason}") from e
+            elif hasattr(e, 'code'):
+                raise RuntimeError(f"Unpaywall returned error {e.code}") from e
             raise RuntimeError(f"Unpaywall lookup failed for DOI: {doi}") from e
+        except Exception as e:
+            raise RuntimeError(f"Unpaywall lookup failed for DOI: {doi} - {type(e).__name__}: {str(e)}") from e
         best = data.get("best_oa_location") or {}
         pdf_url = best.get("url_for_pdf")
         if not pdf_url:
@@ -73,20 +101,24 @@ class PDFFromDOI:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp, open(out_path, "wb") as f:
+            # Bright Data can be slow for complex pages - give it more time
+            with urllib.request.urlopen(req, timeout=45) as resp, open(out_path, "wb") as f:
                 f.write(resp.read())
             return True
-        except Exception:
+        except Exception as e:
+            print(f"Bright Data download failed: {e}")
             return False
 
     def _download_pdf_direct(self, pdf_url: str, out_path: str) -> bool:
         """Direct download fallback for open-access PDFs"""
         try:
             req = urllib.request.Request(pdf_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
-            with urllib.request.urlopen(req, timeout=30) as resp, open(out_path, "wb") as f:
+            # Reduced timeout to 10 seconds
+            with urllib.request.urlopen(req, timeout=10) as resp, open(out_path, "wb") as f:
                 f.write(resp.read())
             return True
-        except Exception:
+        except Exception as e:
+            print(f"Direct download failed: {e}")
             return False
 
     def _is_arxiv_doi(self, doi: str) -> bool:
