@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Network Intervention Visualizer</title>
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+          sans-serif;
+        background: #1e1e1e;
+        color: #dcddde;
+        padding: 0;
+        margin: 0;
+      }
+
+      /* Navigation tabs */
+      .nav-tabs {
+        background: #0a0a0a;
+        border-bottom: 1px solid #2a2a2a;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+      }
+
+      .nav-tabs a {
+        color: #dcddde;
+        text-decoration: none;
+        padding: 15px 30px;
+        display: inline-block;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s;
+      }
+
+      .nav-tabs a:hover {
+        background: #1a1a1a;
+      }
+
+      .nav-tabs a.active {
+        border-bottom-color: #5865f2;
+        color: #ffffff;
+      }
+
+      .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: 500;
+      }
+
+      .main-layout {
+        display: flex;
+        gap: 20px;
+        height: calc(100vh - 180px);
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      .left-panel {
+        flex-grow: 1;
+        flex-shrink: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        min-width: 0;
+        transition: all 0.3s ease;
+      }
+
+      .right-panel {
+        flex: 0 0 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        position: relative;
+        transition: all 0.3s ease;
+        overflow: hidden;
+      }
+
+      .right-panel.collapsed {
+        flex: 0 0 40px;
+      }
+
+      .graph-container {
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        border-radius: 8px;
+        flex: 1;
+        position: relative;
+        min-height: 400px;
+      }
+
+      .recenter-button {
+        position: absolute;
+        bottom: 15px;
+        right: 15px;
+        background: #404040;
+        border: 1px solid #606060;
+        border-radius: 4px;
+        padding: 8px 12px;
+        color: #dcddde;
+        cursor: pointer;
+        font-size: 12px;
+        transition: background 0.2s;
+        z-index: 10;
+      }
+
+      .recenter-button:hover {
+        background: #4a4a4a;
+      }
+
+      .intervention-panel {
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        border-radius: 8px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .intervention-panel label {
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      .intervention-panel select,
+      .intervention-panel input {
+        background: #1e1e1e;
+        border: 1px solid #404040;
+        color: #dcddde;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      .intervention-panel select {
+        min-width: 180px;
+      }
+
+      .intervention-panel input {
+        flex: 1;
+      }
+
+      .intervention-panel button {
+        background: #404040;
+        border: none;
+        color: #dcddde;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+
+      .intervention-panel button:hover {
+        background: #4a4a4a;
+      }
+
+      .interactions-list,
+      .affected-list {
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        border-radius: 8px;
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .right-panel.collapsed .interactions-list,
+      .right-panel.collapsed .affected-list {
+        display: none;
+      }
+
+      .interactions-list h3,
+      .affected-list h3 {
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #404040;
+        padding-bottom: 10px;
+      }
+
+      .interaction-item,
+      .affected-item {
+        padding: 8px 0;
+        font-size: 13px;
+        line-height: 1.5;
+        border-bottom: 1px solid #333;
+      }
+
+      .interaction-item:last-child,
+      .affected-item:last-child {
+        border-bottom: none;
+      }
+
+      .doi-link {
+        color: #7289da;
+        text-decoration: none;
+        font-size: 12px;
+        margin-left: 5px;
+      }
+
+      .doi-link:hover {
+        text-decoration: underline;
+      }
+
+      .effect-increase {
+        color: #43b581;
+      }
+
+      .effect-decrease {
+        color: #f04747;
+      }
+
+      #cy {
+        width: 100%;
+        height: 100%;
+      }
+
+      .loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #dcddde;
+      }
+
+      .collapse-toggle {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #404040;
+        border: 1px solid #606060;
+        border-radius: 4px;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #dcddde;
+        font-size: 16px;
+        transition: all 0.2s;
+        z-index: 100;
+      }
+
+      .collapse-toggle:hover {
+        background: #4a4a4a;
+      }
+
+      .reference-link {
+        color: #7289da;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 500;
+      }
+
+      .reference-link:hover {
+        text-decoration: underline;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation tabs -->
+    <nav class="nav-tabs">
+      <a href="/scraper/">Scraper</a>
+      <a href="/scraper/graph/" class="active">Network Graph</a>
+    </nav>
+
+    <div class="container">
+      <h1>Network Intervention Visualizer</h1>
+
+      <div class="main-layout">
+        <div class="left-panel">
+          <div class="graph-container" id="cy">
+            <div class="loading" id="loading-indicator">
+              Loading interactions...
+            </div>
+            <button
+              class="recenter-button"
+              id="recenter-button"
+              style="display: none"
+            >
+              ⟲ Recenter
+            </button>
+          </div>
+
+          <div class="intervention-panel">
+            <label>Make an intervention:</label>
+            <select id="intervention-type">
+              <option value="increase">Type (increase/decrease)</option>
+              <option value="increase">Increase</option>
+              <option value="decrease">Decrease</option>
+            </select>
+            <input
+              type="text"
+              id="intervention-element"
+              placeholder="Element"
+              list="elements-list"
+            />
+            <datalist id="elements-list"></datalist>
+            <button id="apply-intervention">Apply</button>
+            <button id="reset-intervention">Reset</button>
+          </div>
+        </div>
+
+        <div class="right-panel" id="right-panel">
+          <div class="collapse-toggle" id="collapse-toggle">◀</div>
+          <div class="interactions-list">
+            <h3>List of interactions</h3>
+            <div id="interactions-content"></div>
+          </div>
+
+          <div class="affected-list" id="affected-panel" style="display: none">
+            <h3>List of affected elements</h3>
+            <div id="affected-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let interactions = [];
+      let cy;
+      let currentIntervention = null;
+
+      // Load interactions from Django API
+      async function loadInteractions() {
+        try {
+          const response = await fetch('/scraper/api/interactions/');
+          const data = await response.json();
+
+          if (data.interactions && data.interactions.length > 0) {
+            interactions = data.interactions;
+            document.getElementById('loading-indicator').style.display = 'none';
+            document.getElementById('recenter-button').style.display = 'block';
+            initializeGraph();
+            displayInteractions();
+            populateElementsList();
+            resetIntervention();
+          } else {
+            document.getElementById('loading-indicator').textContent =
+              'No interactions found. Run the scraper to generate data.';
+          }
+        } catch (error) {
+          console.error('Error loading interactions:', error);
+          document.getElementById('loading-indicator').textContent =
+            'Error loading interactions. Please try again.';
+        }
+      }
+
+      function initializeGraph() {
+        // Destroy existing graph if it exists
+        if (cy) {
+          cy.destroy();
+        }
+
+        const elements = buildGraphElements(interactions);
+
+        cy = cytoscape({
+          container: document.getElementById('cy'),
+          elements: elements,
+
+          style: [
+            {
+              selector: 'node',
+              style: {
+                width: 24,
+                height: 24,
+                'background-color': '#404040',
+                'border-width': 1,
+                'border-color': '#606060',
+                label: 'data(label)',
+                'font-size': '18px',
+                'font-weight': 'bold',
+                color: '#ffffff',
+                'text-valign': 'bottom',
+                'text-halign': 'center',
+                'text-margin-y': 8,
+                'text-opacity': 1,
+                'text-outline-color': '#1e1e1e',
+                'text-outline-width': 2,
+              },
+            },
+            {
+              selector: 'node.highlighted-increase',
+              style: {
+                'background-color': '#43b581',
+                'border-color': '#43b581',
+                'border-width': 2,
+              },
+            },
+            {
+              selector: 'node.highlighted-decrease',
+              style: {
+                'background-color': '#f04747',
+                'border-color': '#f04747',
+                'border-width': 2,
+              },
+            },
+            {
+              selector: 'edge',
+              style: {
+                width: 1.5,
+                'line-color': 'data(color)',
+                'target-arrow-color': 'data(color)',
+                'target-arrow-shape': 'triangle',
+                'target-arrow-size': 6,
+                'curve-style': 'bezier',
+                opacity: 0.5,
+              },
+            },
+            {
+              selector: 'edge.highlighted',
+              style: {
+                width: 2.5,
+                opacity: 0.9,
+              },
+            },
+          ],
+
+          layout: {
+            name: 'cose',
+            animate: true,
+            animationDuration: 500,
+            nodeRepulsion: 200000,
+            nodeOverlap: 100,
+            idealEdgeLength: 180,
+            edgeElasticity: 100,
+            nestingFactor: 1.2,
+            gravity: 20,
+            numIter: 2500,
+            initialTemp: 1000,
+            coolingFactor: 0.95,
+            minTemp: 1.0,
+            randomize: false,
+          },
+
+          minZoom: 0.1,
+          maxZoom: 3,
+          wheelSensitivity: 0.2,
+        });
+
+        cy.on('tap', 'node', (evt) => highlightNodeConnections(evt.target));
+
+        cy.on('mouseover', 'node', (evt) => {
+          const node = evt.target;
+          node.neighborhood('node').style({
+            'text-outline-width': 3,
+            color: '#ffffff',
+          });
+          node.connectedEdges().style({ opacity: 0.9, width: 2.5 });
+        });
+
+        cy.on('mouseout', 'node', (evt) => {
+          const node = evt.target;
+          node.neighborhood('node').forEach((n) => {
+            if (
+              !n.hasClass('highlighted-increase') &&
+              !n.hasClass('highlighted-decrease')
+            ) {
+              n.style({
+                'text-outline-width': 2,
+                color: '#ffffff',
+              });
+            }
+          });
+          node.connectedEdges().forEach((edge) => {
+            if (!edge.hasClass('highlighted')) {
+              edge.style({ opacity: 0.5, width: 1.5 });
+            }
+          });
+        });
+      }
+
+      function buildGraphElements(interactions) {
+        const nodes = new Set();
+        const edges = [];
+
+        interactions.forEach((interaction, idx) => {
+          nodes.add(interaction.independent_variable);
+          nodes.add(interaction.dependent_variable);
+
+          const color = interaction.effect === '+' ? '#43b581' : '#f04747';
+          edges.push({
+            data: {
+              id: `edge-${idx}`,
+              source: interaction.independent_variable,
+              target: interaction.dependent_variable,
+              color: color,
+              effect: interaction.effect,
+              reference: interaction.reference,
+            },
+          });
+        });
+
+        const nodeElements = Array.from(nodes).map((node) => ({
+          data: { id: node, label: node },
+        }));
+
+        return [...nodeElements, ...edges];
+      }
+
+      function displayInteractions() {
+        const container = document.getElementById('interactions-content');
+        const grouped = {};
+        const referenceMap = new Map();
+        let refCounter = 1;
+
+        // First pass: assign numbers to unique DOIs
+        interactions.forEach((interaction) => {
+          if (!referenceMap.has(interaction.reference)) {
+            referenceMap.set(interaction.reference, refCounter++);
+          }
+        });
+
+        interactions.forEach((interaction) => {
+          const key = `${interaction.independent_variable}→${interaction.dependent_variable}`;
+          if (!grouped[key]) {
+            grouped[key] = [];
+          }
+          grouped[key].push(interaction);
+        });
+
+        let html = '';
+        Object.entries(grouped).forEach(([key, items]) => {
+          const [iv, dv] = key.split('→');
+          const effect = items[0].effect === '+' ? 'increases' : 'decreases';
+          const effectClass =
+            items[0].effect === '+' ? 'effect-increase' : 'effect-decrease';
+
+          html += `<div class="interaction-item">
+                <span class="${effectClass}">${iv} ${effect} ${dv} `;
+
+          items.forEach((item, idx) => {
+            if (idx > 0) html += ', ';
+            const refNum = referenceMap.get(item.reference);
+            html += `<a href="https://doi.org/${item.reference}" target="_blank" class="reference-link" title="${item.reference}">[${refNum}]</a>`;
+          });
+
+          html += `</span></div>`;
+        });
+
+        container.innerHTML =
+          html || '<div class="empty-state">No interactions to display</div>';
+      }
+
+      function populateElementsList() {
+        const elements = new Set();
+        interactions.forEach((i) => {
+          elements.add(i.independent_variable);
+          elements.add(i.dependent_variable);
+        });
+
+        const datalist = document.getElementById('elements-list');
+        datalist.innerHTML = Array.from(elements)
+          .map((el) => `<option value="${el}">`)
+          .join('');
+      }
+
+      function applyIntervention() {
+        const type = document.getElementById('intervention-type').value;
+        const element = document
+          .getElementById('intervention-element')
+          .value.trim();
+
+        if (!element || (type === 'increase' && !type)) {
+          alert('Please select intervention type and element');
+          return;
+        }
+
+        currentIntervention = { type, element };
+
+        cy.nodes().removeClass('highlighted-increase highlighted-decrease');
+        cy.edges().removeClass('highlighted');
+
+        const affected = calculateAffectedElements(element, type);
+        visualizeIntervention(element, type, affected);
+        displayAffectedElements(element, type, affected);
+      }
+
+      function calculateAffectedElements(startElement, interventionType) {
+        const affected = new Map();
+        const queue = [
+          {
+            element: startElement,
+            effect: interventionType,
+            path: [startElement],
+          },
+        ];
+        const visited = new Set();
+
+        while (queue.length > 0) {
+          const { element, effect, path } = queue.shift();
+          const key = `${element}-${effect}`;
+
+          if (visited.has(key)) continue;
+          visited.add(key);
+
+          const outgoingEdges = interactions.filter(
+            (i) => i.independent_variable === element
+          );
+
+          outgoingEdges.forEach((edge) => {
+            const targetEffect = combineEffects(effect, edge.effect);
+            const newPath = [...path, edge.dependent_variable];
+
+            if (!affected.has(edge.dependent_variable)) {
+              affected.set(edge.dependent_variable, {
+                effect: targetEffect,
+                paths: [],
+              });
+            }
+
+            affected.get(edge.dependent_variable).paths.push({
+              path: newPath,
+              reference: edge.reference,
+            });
+
+            if (newPath.length < 5) {
+              queue.push({
+                element: edge.dependent_variable,
+                effect: targetEffect,
+                path: newPath,
+              });
+            }
+          });
+        }
+
+        return affected;
+      }
+
+      function combineEffects(interventionEffect, edgeEffect) {
+        if (interventionEffect === 'increase') {
+          return edgeEffect === '+' ? 'increase' : 'decrease';
+        } else {
+          return edgeEffect === '+' ? 'decrease' : 'increase';
+        }
+      }
+
+      function visualizeIntervention(element, type, affected) {
+        const node = cy.getElementById(element);
+        const className =
+          type === 'increase' ? 'highlighted-increase' : 'highlighted-decrease';
+        node.addClass(className);
+
+        affected.forEach((info, targetElement) => {
+          const targetNode = cy.getElementById(targetElement);
+          const affectedClass =
+            info.effect === 'increase'
+              ? 'highlighted-increase'
+              : 'highlighted-decrease';
+          targetNode.addClass(affectedClass);
+
+          info.paths.forEach((pathInfo) => {
+            for (let i = 0; i < pathInfo.path.length - 1; i++) {
+              const edges = cy.edges(
+                `[source="${pathInfo.path[i]}"][target="${
+                  pathInfo.path[i + 1]
+                }"]`
+              );
+              edges.addClass('highlighted');
+            }
+          });
+        });
+      }
+
+      function displayAffectedElements(element, type, affected) {
+        const panel = document.getElementById('affected-panel');
+        const container = document.getElementById('affected-content');
+
+        panel.style.display = 'block';
+
+        let html = `<div class="affected-item"><strong>Intervention:</strong> ${type} ${element}</div>`;
+
+        affected.forEach((info, targetElement) => {
+          const effectText =
+            info.effect === 'increase' ? 'increased' : 'decreased';
+          const effectClass =
+            info.effect === 'increase' ? 'effect-increase' : 'effect-decrease';
+
+          html += `<div class="affected-item">
+                <span class="${effectClass}">${targetElement} ${effectText}</span><br>`;
+
+          info.paths.forEach((pathInfo, idx) => {
+            const pathStr = pathInfo.path.join(' → ');
+            html += `<small>Path ${idx + 1}: ${pathStr}</small>
+                        <a href="https://doi.org/${
+                          pathInfo.reference
+                        }" target="_blank" class="doi-link">[${
+              pathInfo.reference
+            }]</a><br>`;
+          });
+
+          html += `</div>`;
+        });
+
+        container.innerHTML = html;
+      }
+
+      function resetIntervention() {
+        currentIntervention = null;
+        if (cy) {
+          cy.nodes().removeClass('highlighted-increase highlighted-decrease');
+          cy.nodes().style({ 'border-width': 1 });
+          cy.edges().removeClass('highlighted');
+          cy.edges().style({ opacity: 0.5, width: 1.5 });
+        }
+        document.getElementById('intervention-element').value = '';
+        document.getElementById('affected-panel').style.display = 'none';
+      }
+
+      function highlightNodeConnections(node) {
+        cy.edges().removeClass('highlighted');
+        const connectedEdges = node.connectedEdges();
+        connectedEdges.addClass('highlighted');
+      }
+
+      document
+        .getElementById('apply-intervention')
+        .addEventListener('click', applyIntervention);
+      document
+        .getElementById('reset-intervention')
+        .addEventListener('click', resetIntervention);
+
+      // Collapse/expand functionality
+      let isCollapsed = false;
+      document
+        .getElementById('collapse-toggle')
+        .addEventListener('click', () => {
+          isCollapsed = !isCollapsed;
+          const rightPanel = document.getElementById('right-panel');
+          const toggle = document.getElementById('collapse-toggle');
+
+          rightPanel.classList.toggle('collapsed', isCollapsed);
+          toggle.textContent = isCollapsed ? '▶' : '◀';
+
+          setTimeout(() => {
+            if (cy) {
+              cy.resize();
+              cy.fit();
+            }
+          }, 320);
+        });
+
+      // Recenter button functionality
+      document
+        .getElementById('recenter-button')
+        .addEventListener('click', () => {
+          if (cy) {
+            cy.fit();
+            cy.center();
+          }
+        });
+
+      // Initialize by loading interactions
+      loadInteractions();
+    </script>
+  </body>
+</html>

@@ -19,6 +19,11 @@ def scraper_home(request):
     return render(request, 'scraper/home.html', context)
 
 
+def graph_view(request):
+    """Network graph visualization"""
+    return render(request, 'scraper/graph_view.html')
+
+
 @require_POST
 @csrf_exempt
 def start_job(request):

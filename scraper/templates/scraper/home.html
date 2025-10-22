@@ -338,10 +338,45 @@
       .job-item:hover {
         background: rgba(255, 255, 255, 0.02);
       }
+
+      /* Navigation tabs */
+      .nav-tabs {
+        background: #0a0a0a;
+        border-bottom: 1px solid #2a2a2a;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        margin: -20px -20px 30px -20px;
+      }
+
+      .nav-tabs a {
+        color: #b0b0b0;
+        text-decoration: none;
+        padding: 15px 30px;
+        display: inline-block;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s;
+      }
+
+      .nav-tabs a:hover {
+        background: #1a1a1a;
+        color: #e0e0e0;
+      }
+
+      .nav-tabs a.active {
+        border-bottom-color: #ffffff;
+        color: #ffffff;
+      }
     </style>
   </head>
   <body>
     <div class="container">
+      <!-- Navigation tabs -->
+      <nav class="nav-tabs">
+        <a href="/scraper/" class="active">Scraper</a>
+        <a href="/scraper/graph/">Network Graph</a>
+      </nav>
+
       <header>
         <h1>🔬 Scientific Paper Scraper Agent</h1>
         <p>
