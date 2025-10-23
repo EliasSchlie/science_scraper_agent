@@ -693,6 +693,14 @@
 
         try {
           const response = await fetch(`/scraper/api/job/${jobId}/status/`);
+          
+          // If job not found (e.g., from different workspace), redirect to clean page
+          if (response.status === 404) {
+            console.warn('Job not found in current workspace, redirecting...');
+            window.location.href = '/scraper/';
+            return;
+          }
+          
           const data = await response.json();
 
           updateJobDisplay(data);
@@ -703,6 +711,8 @@
           startPolling();
         } catch (error) {
           console.error('Error loading job:', error);
+          // On error, show all workspace interactions instead
+          loadAllWorkspaceInteractions();
         }
       }
 
@@ -860,6 +870,15 @@
             const response = await fetch(
               `/scraper/api/job/${currentJobId}/status/`
             );
+            
+            // If job not found (switched workspace), stop polling and redirect
+            if (response.status === 404) {
+              console.warn('Job no longer accessible, stopping polling');
+              stopPolling();
+              window.location.href = '/scraper/';
+              return;
+            }
+            
             const data = await response.json();
 
             updateJobDisplay(data);
@@ -937,6 +956,9 @@
       async function switchWorkspace() {
         const workspace = document.getElementById('workspace-select').value;
         
+        // Stop polling before switching
+        stopPolling();
+        
         try {
           const response = await fetch('/scraper/api/workspace/switch/', {
             method: 'POST',
@@ -949,8 +971,8 @@
           const data = await response.json();
 
           if (response.ok) {
-            // Reload the page to show new workspace data
-            window.location.reload();
+            // Reload WITHOUT job_id parameter to show clean workspace
+            window.location.href = '/scraper/';
           } else {
             alert('Error: ' + data.error);
           }
@@ -968,6 +990,9 @@
           return;
         }
 
+        // Stop polling before switching
+        stopPolling();
+
         try {
           const response = await fetch('/scraper/api/workspace/switch/', {
             method: 'POST',
@@ -980,8 +1005,8 @@
           const data = await response.json();
 
           if (response.ok) {
-            // Reload the page to show new workspace
-            window.location.reload();
+            // Reload WITHOUT job_id parameter to show clean workspace
+            window.location.href = '/scraper/';
           } else {
             alert('Error: ' + data.error);
           }

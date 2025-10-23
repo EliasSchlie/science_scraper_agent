@@ -913,8 +913,8 @@
           const data = await response.json();
 
           if (response.ok) {
-            // Reload the page to show new workspace data
-            window.location.reload();
+            // Reload WITHOUT any parameters to show clean workspace
+            window.location.href = '/scraper/graph/';
           } else {
             alert('Error: ' + data.error);
           }
@@ -944,8 +944,8 @@
           const data = await response.json();
 
           if (response.ok) {
-            // Reload the page to show new workspace
-            window.location.reload();
+            // Reload WITHOUT any parameters to show clean workspace
+            window.location.href = '/scraper/graph/';
           } else {
             alert('Error: ' + data.error);
           }

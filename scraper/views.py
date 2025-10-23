@@ -89,7 +89,8 @@ def start_job(request):
 @require_GET
 def job_status(request, job_id):
     """Get job status and progress"""
-    job = get_object_or_404(ScraperJob, id=job_id)
+    workspace = get_current_workspace(request)
+    job = get_object_or_404(ScraperJob, id=job_id, workspace=workspace)
     
     return JsonResponse({
         'id': job.id,
@@ -131,7 +132,8 @@ def interactions_list(request):
 @require_GET
 def job_interactions(request, job_id):
     """Get interactions for a specific job"""
-    job = get_object_or_404(ScraperJob, id=job_id)
+    workspace = get_current_workspace(request)
+    job = get_object_or_404(ScraperJob, id=job_id, workspace=workspace)
     
     # Get interactions linked to this job
     interactions = Interaction.objects.filter(job=job, effect__in=['+', '-'])
@@ -152,7 +154,8 @@ def job_interactions(request, job_id):
 @csrf_exempt
 def stop_job(request, job_id):
     """Stop a running job"""
-    job = get_object_or_404(ScraperJob, id=job_id)
+    workspace = get_current_workspace(request)
+    job = get_object_or_404(ScraperJob, id=job_id, workspace=workspace)
     
     if job.status == 'running':
         job.stop_requested = True
@@ -167,7 +170,8 @@ def stop_job(request, job_id):
 @csrf_exempt
 def delete_job(request, job_id):
     """Delete a job and its associated data"""
-    job = get_object_or_404(ScraperJob, id=job_id)
+    workspace = get_current_workspace(request)
+    job = get_object_or_404(ScraperJob, id=job_id, workspace=workspace)
     
     # Check if force delete is requested
     force = request.POST.get('force') == 'true' or json.loads(request.body or '{}').get('force') == True
