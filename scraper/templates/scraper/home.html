@@ -346,7 +346,7 @@
         padding: 0;
         display: flex;
         justify-content: center;
-        margin: -20px -20px 30px -20px;
+        margin: -20px -20px 0 -20px;
       }
 
       .nav-tabs a {
@@ -377,6 +377,7 @@
         align-items: center;
         justify-content: center;
         gap: 15px;
+        margin: 0 -20px 30px -20px;
       }
 
       .workspace-selector label {
@@ -596,11 +597,11 @@
       </div>
 
       <div class="card">
-        <h2>🔍 Discovered Interactions</h2>
+        <h2 id="interactions-heading">🔍 Discovered Interactions</h2>
         <div id="interactions-container">
           <div class="empty-state">
             <p>
-              No interactions yet. Start a scraping job to see results here.
+              Loading interactions...
             </p>
           </div>
         </div>
@@ -612,6 +613,20 @@
       let pollInterval = null;
       let lastLogText = ''; // Keep previous logs to only append new lines
 
+      // Load all workspace interactions
+      async function loadAllWorkspaceInteractions() {
+        try {
+          const response = await fetch('/scraper/api/interactions/');
+          const data = await response.json();
+          // Update heading to show all workspace interactions
+          document.getElementById('interactions-heading').textContent = 
+            '🔍 All Workspace Interactions';
+          displayInteractions(data.interactions);
+        } catch (error) {
+          console.error('Error loading workspace interactions:', error);
+        }
+      }
+
       // On page load, check if there's a running or recent job to display
       window.addEventListener('DOMContentLoaded', () => {
         // Check URL parameters for job_id
@@ -620,6 +635,9 @@
 
         if (jobId) {
           loadJob(parseInt(jobId));
+        } else {
+          // Load all workspace interactions when no specific job is selected
+          loadAllWorkspaceInteractions();
         }
       });
 
@@ -769,6 +787,9 @@
           );
           const data = await response.json();
 
+          // Update heading to show job-specific interactions
+          document.getElementById('interactions-heading').textContent = 
+            '🔍 Job Interactions';
           displayInteractions(data.interactions);
         } catch (error) {
           console.error('Error loading interactions:', error);
@@ -781,7 +802,7 @@
 
         if (interactions.length === 0) {
           container.innerHTML =
-            '<div class="empty-state"><p>No interactions found yet.</p></div>';
+            '<div class="empty-state"><p>No interactions in this workspace yet. Start a scraping job to discover interactions.</p></div>';
           return;
         }
 

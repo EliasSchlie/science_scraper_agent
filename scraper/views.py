@@ -130,21 +130,12 @@ def interactions_list(request):
 
 @require_GET
 def job_interactions(request, job_id):
-    """Get interactions for a specific job (by time range)"""
+    """Get interactions for a specific job"""
     job = get_object_or_404(ScraperJob, id=job_id)
     
-    # Get interactions created during this job's run
-    if job.completed_at:
-        interactions = Interaction.objects.filter(
-            created_at__gte=job.started_at,
-            created_at__lte=job.completed_at
-        )
-    else:
-        interactions = Interaction.objects.filter(
-            created_at__gte=job.started_at
-        )
+    # Get interactions linked to this job
+    interactions = Interaction.objects.filter(job=job, effect__in=['+', '-'])
     
-    # Only include interactions with '+' or '-' effect
     data = [{
         'id': i.id,
         'independent_variable': i.independent_variable,
@@ -152,7 +143,7 @@ def job_interactions(request, job_id):
         'effect': i.effect,
         'reference': i.reference,
         'date_published': i.date_published,
-    } for i in interactions if i.effect in ['+', '-']]
+    } for i in interactions]
     
     return JsonResponse({'interactions': data, 'count': len(data)})
 

@@ -60,6 +60,7 @@ class ScraperService:
             return
         Interaction.objects.create(
             workspace=self.job.workspace,
+            job=self.job,
             independent_variable=iv,
             dependent_variable=dv,
             effect=normalized,

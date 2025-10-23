@@ -5,6 +5,7 @@ from django.utils import timezone
 class Interaction(models.Model):
     """Stores extracted interactions from scientific papers"""
     workspace = models.CharField(max_length=100, default='default', db_index=True)
+    job = models.ForeignKey('ScraperJob', on_delete=models.CASCADE, related_name='interactions', null=True, blank=True)
     independent_variable = models.CharField(max_length=500)
     dependent_variable = models.CharField(max_length=500)
     effect = models.CharField(max_length=10)  # '+' or '-'
