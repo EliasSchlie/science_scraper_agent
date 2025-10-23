@@ -367,6 +367,63 @@
         border-bottom-color: #ffffff;
         color: #ffffff;
       }
+
+      /* Workspace selector */
+      .workspace-selector {
+        background: #0a0a0a;
+        border-bottom: 1px solid #2a2a2a;
+        padding: 15px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      .workspace-selector label {
+        color: #b0b0b0;
+        font-size: 0.9em;
+      }
+
+      .workspace-selector select {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        color: #ffffff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .workspace-selector select:focus {
+        outline: none;
+        border-color: #4a4a4a;
+      }
+
+      .workspace-selector input {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        color: #ffffff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        width: 150px;
+      }
+
+      .workspace-selector button {
+        background: #ffffff;
+        color: #0a0a0a;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .workspace-selector button:hover {
+        background: #e0e0e0;
+      }
     </style>
   </head>
   <body>
@@ -374,7 +431,7 @@
       <!-- Navigation tabs -->
       <nav class="nav-tabs">
         <a href="/scraper/" class="active">Scraper</a>
-        <a href="/scraper/graph/">Network Graph</a>
+        <a href="/scraper/graph/">Current Graph</a>
         <a href="http://interaction-scraper.eliasschlie.com/" target="_blank"
           >Example Graphs</a
         >
@@ -384,6 +441,19 @@
           >Video Walkthrough</a
         >
       </nav>
+
+      <!-- Workspace selector -->
+      <div class="workspace-selector">
+        <label for="workspace-select">Workspace:</label>
+        <select id="workspace-select" onchange="switchWorkspace()">
+          {% for ws in all_workspaces %}
+          <option value="{{ ws }}" {% if ws == current_workspace %}selected{% endif %}>{{ ws }}</option>
+          {% endfor %}
+        </select>
+        <span style="color: #666;">|</span>
+        <input type="text" id="new-workspace-name" placeholder="New workspace name" />
+        <button onclick="createWorkspace()">Create New</button>
+      </div>
 
       <header>
         <h1>🔬 Scientific Paper Scraper Agent</h1>
@@ -839,6 +909,63 @@
           } else {
             stopBtn.style.display = 'none';
           }
+        }
+      }
+
+      // Switch workspace
+      async function switchWorkspace() {
+        const workspace = document.getElementById('workspace-select').value;
+        
+        try {
+          const response = await fetch('/scraper/api/workspace/switch/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ workspace: workspace }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // Reload the page to show new workspace data
+            window.location.reload();
+          } else {
+            alert('Error: ' + data.error);
+          }
+        } catch (error) {
+          alert('Error switching workspace: ' + error.message);
+        }
+      }
+
+      // Create new workspace
+      async function createWorkspace() {
+        const workspaceName = document.getElementById('new-workspace-name').value.trim();
+        
+        if (!workspaceName) {
+          alert('Please enter a workspace name');
+          return;
+        }
+
+        try {
+          const response = await fetch('/scraper/api/workspace/switch/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ workspace: workspaceName }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // Reload the page to show new workspace
+            window.location.reload();
+          } else {
+            alert('Error: ' + data.error);
+          }
+        } catch (error) {
+          alert('Error creating workspace: ' + error.message);
         }
       }
 

@@ -4,6 +4,7 @@ from django.utils import timezone
 
 class Interaction(models.Model):
     """Stores extracted interactions from scientific papers"""
+    workspace = models.CharField(max_length=100, default='default', db_index=True)
     independent_variable = models.CharField(max_length=500)
     dependent_variable = models.CharField(max_length=500)
     effect = models.CharField(max_length=10)  # '+' or '-'
@@ -13,6 +14,9 @@ class Interaction(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['workspace', '-created_at']),
+        ]
     
     def __str__(self):
         return f"{self.independent_variable} -> {self.dependent_variable} ({self.effect})"
@@ -27,6 +31,7 @@ class ScraperJob(models.Model):
         ('failed', 'Failed'),
     ]
     
+    workspace = models.CharField(max_length=100, default='default', db_index=True)
     variable_of_interest = models.CharField(max_length=500)
     min_interactions = models.IntegerField(default=5)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -41,6 +46,9 @@ class ScraperJob(models.Model):
     
     class Meta:
         ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['workspace', '-started_at']),
+        ]
     
     def __str__(self):
         return f"Job {self.id}: {self.variable_of_interest} ({self.status})"

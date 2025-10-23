@@ -7,21 +7,49 @@ from .services import start_scraper_job_async
 import json
 
 
+def get_current_workspace(request):
+    """Get current workspace from session, defaulting to 'default'"""
+    return request.session.get('workspace', 'default')
+
+
 def scraper_home(request):
     """Main scraper interface"""
-    recent_jobs = ScraperJob.objects.all()[:10]
-    total_interactions = Interaction.objects.count()
+    workspace = get_current_workspace(request)
+    recent_jobs = ScraperJob.objects.filter(workspace=workspace)[:10]
+    total_interactions = Interaction.objects.filter(workspace=workspace).count()
+    
+    # Get list of all workspaces
+    all_workspaces = list(ScraperJob.objects.values_list('workspace', flat=True).distinct())
+    if 'default' not in all_workspaces:
+        all_workspaces.insert(0, 'default')
     
     context = {
         'recent_jobs': recent_jobs,
         'total_interactions': total_interactions,
+        'current_workspace': workspace,
+        'all_workspaces': all_workspaces,
     }
     return render(request, 'scraper/home.html', context)
 
 
 def graph_view(request):
     """Network graph visualization"""
-    return render(request, 'scraper/graph_view.html')
+    workspace = get_current_workspace(request)
+    
+    # Get list of all workspaces
+    all_workspaces = list(ScraperJob.objects.values_list('workspace', flat=True).distinct())
+    if 'default' not in all_workspaces:
+        all_workspaces.insert(0, 'default')
+    
+    # Check if workspace has interactions
+    has_interactions = Interaction.objects.filter(workspace=workspace).exists()
+    
+    context = {
+        'current_workspace': workspace,
+        'all_workspaces': all_workspaces,
+        'has_interactions': has_interactions,
+    }
+    return render(request, 'scraper/graph_view.html', context)
 
 
 @require_POST
@@ -32,12 +60,14 @@ def start_job(request):
         data = json.loads(request.body)
         variable_of_interest = data.get('variable_of_interest', '').strip()
         min_interactions = int(data.get('min_interactions', 5))
+        workspace = get_current_workspace(request)
         
         if not variable_of_interest:
             return JsonResponse({'error': 'Variable of interest is required'}, status=400)
         
         # Create job
         job = ScraperJob.objects.create(
+            workspace=workspace,
             variable_of_interest=variable_of_interest,
             min_interactions=min_interactions,
             status='pending'
@@ -78,8 +108,9 @@ def job_status(request, job_id):
 
 @require_GET
 def interactions_list(request):
-    """Get list of all interactions"""
-    interactions = Interaction.objects.filter(effect__in=['+', '-'])[:100]  # Only valid effects
+    """Get list of all interactions for current workspace"""
+    workspace = get_current_workspace(request)
+    interactions = Interaction.objects.filter(workspace=workspace, effect__in=['+', '-'])[:100]  # Only valid effects
     
     data = [{
         'id': i.id,
@@ -91,7 +122,10 @@ def interactions_list(request):
         'created_at': i.created_at.isoformat(),
     } for i in interactions]
     
-    return JsonResponse({'interactions': data, 'total': Interaction.objects.filter(effect__in=['+', '-']).count()})
+    return JsonResponse({
+        'interactions': data, 
+        'total': Interaction.objects.filter(workspace=workspace, effect__in=['+', '-']).count()
+    })
 
 
 @require_GET
@@ -156,4 +190,42 @@ def delete_job(request, job_id):
     
     job.delete()
     return JsonResponse({'message': 'Job deleted successfully'})
+
+
+@require_POST
+@csrf_exempt
+def switch_workspace(request):
+    """Switch to a different workspace"""
+    try:
+        data = json.loads(request.body)
+        workspace = data.get('workspace', 'default').strip()
+        
+        if not workspace:
+            return JsonResponse({'error': 'Workspace name is required'}, status=400)
+        
+        # Store in session
+        request.session['workspace'] = workspace
+        
+        return JsonResponse({
+            'workspace': workspace,
+            'message': f'Switched to workspace: {workspace}'
+        })
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_GET
+def list_workspaces(request):
+    """Get list of all workspaces"""
+    workspaces = list(ScraperJob.objects.values_list('workspace', flat=True).distinct())
+    if 'default' not in workspaces:
+        workspaces.insert(0, 'default')
+    
+    current_workspace = get_current_workspace(request)
+    
+    return JsonResponse({
+        'workspaces': workspaces,
+        'current': current_workspace
+    })
 

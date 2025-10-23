@@ -278,13 +278,105 @@
         padding: 40px;
         color: #666;
       }
+
+      /* Workspace selector */
+      .workspace-selector {
+        background: #0a0a0a;
+        border-bottom: 1px solid #2a2a2a;
+        padding: 15px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      .workspace-selector label {
+        color: #dcddde;
+        font-size: 0.9em;
+      }
+
+      .workspace-selector select {
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        color: #dcddde;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .workspace-selector select:focus {
+        outline: none;
+        border-color: #606060;
+      }
+
+      .workspace-selector input {
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        color: #dcddde;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        width: 150px;
+      }
+
+      .workspace-selector button {
+        background: #404040;
+        color: #dcddde;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .workspace-selector button:hover {
+        background: #4a4a4a;
+      }
+
+      .empty-workspace-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        max-width: 500px;
+        padding: 40px;
+        background: #2d2d2d;
+        border: 1px solid #404040;
+        border-radius: 8px;
+      }
+
+      .empty-workspace-message h2 {
+        color: #dcddde;
+        margin-bottom: 15px;
+        font-size: 20px;
+      }
+
+      .empty-workspace-message p {
+        color: #888;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+
+      .empty-workspace-message a {
+        color: #7289da;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .empty-workspace-message a:hover {
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body>
     <!-- Navigation tabs -->
     <nav class="nav-tabs">
       <a href="/scraper/">Scraper</a>
-      <a href="/scraper/graph/" class="active">Network Graph</a>
+      <a href="/scraper/graph/" class="active">Current Graph</a>
       <a href="http://interaction-scraper.eliasschlie.com/" target="_blank"
         >Example Graphs</a
       >
@@ -293,12 +385,37 @@
       >
     </nav>
 
+    <!-- Workspace selector -->
+    <div class="workspace-selector">
+      <label for="workspace-select">Workspace:</label>
+      <select id="workspace-select" onchange="switchWorkspace()">
+        {% for ws in all_workspaces %}
+        <option value="{{ ws }}" {% if ws == current_workspace %}selected{% endif %}>{{ ws }}</option>
+        {% endfor %}
+      </select>
+      <span style="color: #666;">|</span>
+      <input type="text" id="new-workspace-name" placeholder="New workspace name" />
+      <button onclick="createWorkspace()">Create New</button>
+    </div>
+
     <div class="container">
-      <h1>Network Intervention Visualizer</h1>
+      <h1>Current Graph - {{ current_workspace }}</h1>
 
       <div class="main-layout">
         <div class="left-panel">
           <div class="graph-container" id="cy">
+            {% if not has_interactions %}
+            <div class="empty-workspace-message">
+              <h2>No Graph Data Available</h2>
+              <p>
+                This workspace "<strong>{{ current_workspace }}</strong>" doesn't have any interactions yet.
+              </p>
+              <p>
+                To create a graph, go to the <a href="/scraper/">Scraper page</a> and run the agent with your query. 
+                The interactions found will appear here as a network graph.
+              </p>
+            </div>
+            {% else %}
             <div class="loading" id="loading-indicator">
               Loading interactions...
             </div>
@@ -309,6 +426,7 @@
             >
               ⟲ Recenter
             </button>
+            {% endif %}
           </div>
 
           <div class="intervention-panel">
@@ -779,8 +897,68 @@
           }
         });
 
-      // Initialize by loading interactions
-      loadInteractions();
+      // Switch workspace
+      async function switchWorkspace() {
+        const workspace = document.getElementById('workspace-select').value;
+        
+        try {
+          const response = await fetch('/scraper/api/workspace/switch/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ workspace: workspace }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // Reload the page to show new workspace data
+            window.location.reload();
+          } else {
+            alert('Error: ' + data.error);
+          }
+        } catch (error) {
+          alert('Error switching workspace: ' + error.message);
+        }
+      }
+
+      // Create new workspace
+      async function createWorkspace() {
+        const workspaceName = document.getElementById('new-workspace-name').value.trim();
+        
+        if (!workspaceName) {
+          alert('Please enter a workspace name');
+          return;
+        }
+
+        try {
+          const response = await fetch('/scraper/api/workspace/switch/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ workspace: workspaceName }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // Reload the page to show new workspace
+            window.location.reload();
+          } else {
+            alert('Error: ' + data.error);
+          }
+        } catch (error) {
+          alert('Error creating workspace: ' + error.message);
+        }
+      }
+
+      // Initialize by loading interactions (only if workspace has data)
+      const hasInteractions = {{ has_interactions|lower }};
+      if (hasInteractions) {
+        loadInteractions();
+      }
     </script>
   </body>
 </html>

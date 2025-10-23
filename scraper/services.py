@@ -59,6 +59,7 @@ class ScraperService:
             self.update_status("EXTRACT", f"✗ Skipping interaction with invalid effect '{effect}'")
             return
         Interaction.objects.create(
+            workspace=self.job.workspace,
             independent_variable=iv,
             dependent_variable=dv,
             effect=normalized,
@@ -282,6 +283,15 @@ Create a concise PubMed search query for finding intervention studies on human s
         doi = state['current_paper'].get('doi', '')
         pub_date = state['current_paper'].get('pub_date', '')
         
+        # Truncate paper to avoid token limit issues
+        # Rough estimate: 1 token ≈ 4 characters, we want to stay under 100k tokens
+        # so limit to about 400k characters (leaving room for prompts and responses)
+        paper_content = state['paper_md']
+        max_chars = 400000
+        if len(paper_content) > max_chars:
+            self.update_status("EXTRACT", f"Paper too long ({len(paper_content):,} chars), truncating to {max_chars:,} chars")
+            paper_content = paper_content[:max_chars] + "\n\n[... Paper truncated due to length ...]"
+        
         extraction_complete = False
         
         # Create tools
@@ -321,7 +331,7 @@ For each experiment:
 Call submit_interactions with your findings, then call finish_extraction when done.
 
 Paper content:
-{state['paper_md']}"""
+{paper_content}"""
         
         messages = [
             SystemMessage(content="Extract ALL causal relationships. Call submit_interactions then finish_extraction."),

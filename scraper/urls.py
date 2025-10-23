@@ -12,5 +12,7 @@ urlpatterns = [
     path('api/job/<int:job_id>/stop/', views.stop_job, name='stop_job'),
     path('api/job/<int:job_id>/delete/', views.delete_job, name='delete_job'),
     path('api/interactions/', views.interactions_list, name='interactions_list'),
+    path('api/workspaces/', views.list_workspaces, name='list_workspaces'),
+    path('api/workspace/switch/', views.switch_workspace, name='switch_workspace'),
 ]
 
