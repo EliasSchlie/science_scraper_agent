@@ -8,97 +8,280 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-      background: #1e1e1e;
-      color: #dcddde;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+      background: #000000;
+      color: #e0e0e0;
       height: 100vh;
       overflow: hidden;
     }
 
     /* Navigation */
-    .nav-tabs {
+    .nav-bar {
       background: #0a0a0a;
-      border-bottom: 1px solid #2a2a2a;
+      border-bottom: 1px solid #1a1a1a;
       padding: 0;
       display: flex;
       align-items: center;
-      height: 50px;
-    }
-    .nav-tabs a {
-      color: #dcddde;
-      text-decoration: none;
-      padding: 15px 24px;
-      display: inline-block;
-      border-bottom: 3px solid transparent;
-      transition: all 0.2s;
-      font-size: 14px;
-    }
-    .nav-tabs a:hover { background: #1a1a1a; }
-    .nav-tabs a.active {
-      border-bottom-color: #5865f2;
-      color: #ffffff;
-    }
-    .user-info {
-      margin-left: auto;
-      padding: 0 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 13px;
-    }
-    .user-info a {
-      color: #5865f2;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .user-info a:hover { text-decoration: underline; }
-    .credits-badge {
-      background: #5865f2;
-      color: #fff;
-      padding: 4px 10px;
-      border-radius: 10px;
-      font-weight: 500;
-      font-size: 12px;
+      height: 56px;
+      position: relative;
     }
 
-    /* Workspace Bar */
-    .workspace-selector {
-      background: #0a0a0a;
-      border-bottom: 1px solid #2a2a2a;
-      padding: 8px 20px;
+    .nav-left {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 12px;
-      height: 45px;
+      gap: 0;
     }
-    .workspace-selector label { color: #b9bbbe; font-size: 13px; }
-    .workspace-selector select, .workspace-selector input {
-      background: #2d2d2d;
-      border: 1px solid #404040;
-      color: #dcddde;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 13px;
+
+    .nav-bar a {
+      color: #b0b0b0;
+      text-decoration: none;
+      padding: 18px 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      font-size: 14px;
+      font-weight: 500;
     }
-    .workspace-selector button {
-      background: #404040;
-      color: #dcddde;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
+
+    .nav-bar a:hover {
+      background: #141414;
+      color: #ffffff;
+    }
+
+    .nav-bar a.active {
+      border-bottom-color: #6366f1;
+      color: #ffffff;
+      background: #0f0f0f;
+    }
+
+    /* Workspace Dropdown */
+    .workspace-dropdown {
+      margin-left: auto;
+      position: relative;
+      margin-right: 12px;
+    }
+
+    .workspace-btn {
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      color: #e0e0e0;
+      padding: 8px 14px;
+      border-radius: 6px;
       cursor: pointer;
       font-size: 13px;
-      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      font-weight: 500;
     }
-    .workspace-selector button:hover { background: #4a4a4a; }
+
+    .workspace-btn:hover {
+      background: #1a1a1a;
+      border-color: #3a3a3a;
+    }
+
+    .workspace-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      min-width: 240px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 1000;
+      overflow: hidden;
+    }
+
+    .workspace-menu.show {
+      display: block;
+    }
+
+    .workspace-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      color: #e0e0e0;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-bottom: 1px solid #1a1a1a;
+      font-size: 13px;
+    }
+
+    .workspace-item:hover {
+      background: #1a1a1a;
+    }
+
+    .workspace-item.active {
+      background: #141414;
+      color: #6366f1;
+      font-weight: 500;
+    }
+
+    .workspace-delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+
+    .workspace-item:hover .workspace-delete {
+      opacity: 1;
+    }
+
+    .workspace-delete:hover {
+      color: #dc2626;
+    }
+
+    .workspace-add {
+      padding: 12px 14px;
+      color: #6366f1;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid #2a2a2a;
+    }
+
+    .workspace-add:hover {
+      background: #1a1a1a;
+    }
+
+    /* User Info */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding-right: 20px;
+      font-size: 13px;
+      border-left: 1px solid #1a1a1a;
+      padding-left: 16px;
+    }
+
+    .credits-badge {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 12px;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .user-info a {
+      color: #b0b0b0;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .user-info a:hover {
+      color: #ffffff;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #ffffff;
+    }
+
+    .modal-input {
+      width: 100%;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      color: #e0e0e0;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .modal-input:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: #6366f1;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #5558e3;
+    }
+
+    .btn-secondary {
+      background: #1a1a1a;
+      color: #e0e0e0;
+    }
+
+    .btn-secondary:hover {
+      background: #242424;
+    }
 
     /* Main Content */
     .container {
       max-width: 1400px;
-      height: calc(100vh - 95px);
+      height: calc(100vh - 56px);
       margin: 0 auto;
-      padding: 16px;
+      padding: 20px;
       overflow-y: auto;
     }
 
@@ -107,37 +290,83 @@
 </head>
 <body>
   <!-- Navigation -->
-  <nav class="nav-tabs">
-    <a href="/scraper/" {% if request.path == '/scraper/' %}class="active"{% endif %}>Scraper</a>
-    <a href="/scraper/graph/" {% if '/graph/' in request.path %}class="active"{% endif %}>Graph</a>
+  <nav class="nav-bar">
+    <div class="nav-left">
+      <a href="/scraper/" {% if request.path == '/scraper/' %}class="active"{% endif %}>
+        🤖 Scraper
+      </a>
+      <a href="/scraper/graph/" {% if '/graph/' in request.path %}class="active"{% endif %}>
+        📊 Graph
+      </a>
+    </div>
+
+    <!-- Workspace Dropdown -->
+    <div class="workspace-dropdown">
+      <button class="workspace-btn" onclick="toggleWorkspaceMenu()">
+        📁 <span id="current-workspace-display">{{ current_workspace }}</span> ▾
+      </button>
+      <div class="workspace-menu" id="workspace-menu">
+        {% for ws in all_workspaces %}
+        <div class="workspace-item {% if ws == current_workspace %}active{% endif %}"
+             onclick="switchToWorkspace('{{ ws }}')">
+          <span>{{ ws }}</span>
+          {% if ws != 'default' %}
+          <button class="workspace-delete" onclick="event.stopPropagation(); deleteWorkspace('{{ ws }}')">
+            🗑️
+          </button>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <div class="workspace-add" onclick="showCreateWorkspaceModal()">
+          ➕ Create Workspace
+        </div>
+      </div>
+    </div>
+
+    <!-- User Info -->
     <div class="user-info">
-      <span class="credits-badge" id="credits-display">{{ user.profile.credits }} Credits</span>
-      <span style="color: #b9bbbe;">{{ user.username }}</span>
-      <a href="/account/">Account</a>
-      <a href="/logout/" style="color: #f04747;">Logout</a>
+      <span class="credits-badge" id="credits-display">💎 {{ user.profile.credits }}</span>
+      <span style="color: #e0e0e0;">👤 {{ user.username }}</span>
+      <a href="/account/">⚙️ Account</a>
+      <a href="/logout/" style="color: #ef4444;">🚪 Logout</a>
     </div>
   </nav>
 
-  <!-- Workspace Bar -->
-  <div class="workspace-selector">
-    <label>Workspace:</label>
-    <select id="workspace-select" onchange="switchWorkspace()">
-      {% for ws in all_workspaces %}
-      <option value="{{ ws }}" {% if ws == current_workspace %}selected{% endif %}>{{ ws }}</option>
-      {% endfor %}
-    </select>
-    <span style="color: #404040;">|</span>
-    <input type="text" id="new-workspace-name" placeholder="New..." style="width: 120px;" />
-    <button onclick="createWorkspace()">Create</button>
-    {% block workspace_extra %}{% endblock %}
-  </div>
-
   {% block content %}{% endblock %}
 
+  <!-- Create Workspace Modal -->
+  <div class="modal" id="create-workspace-modal">
+    <div class="modal-content">
+      <div class="modal-header">✨ Create New Workspace</div>
+      <input type="text"
+             class="modal-input"
+             id="new-workspace-input"
+             placeholder="Enter workspace name..."
+             onkeypress="if(event.key === 'Enter') createWorkspaceFromModal()">
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="hideCreateWorkspaceModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createWorkspaceFromModal()">Create</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Workspace switching
-    async function switchWorkspace() {
-      const workspace = document.getElementById('workspace-select').value;
+    // Workspace dropdown toggle
+    function toggleWorkspaceMenu() {
+      const menu = document.getElementById('workspace-menu');
+      menu.classList.toggle('show');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      const dropdown = document.querySelector('.workspace-dropdown');
+      if (!dropdown.contains(e.target)) {
+        document.getElementById('workspace-menu').classList.remove('show');
+      }
+    });
+
+    // Switch workspace
+    async function switchToWorkspace(workspace) {
       try {
         const response = await fetch('/scraper/api/workspace/switch/', {
           method: 'POST',
@@ -146,14 +375,53 @@
         });
         if (response.ok) location.reload();
       } catch (error) {
-        showMessage('Error switching workspace', 'error');
+        alert('Error switching workspace: ' + error.message);
       }
     }
 
-    // Create workspace
-    async function createWorkspace() {
-      const name = document.getElementById('new-workspace-name').value.trim();
-      if (!name) return alert('Enter workspace name');
+    // Delete workspace
+    async function deleteWorkspace(workspace) {
+      if (!confirm(`Delete workspace "${workspace}"? This will delete all its jobs and interactions.`)) return;
+
+      try {
+        const response = await fetch('/scraper/api/workspace/delete/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workspace })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (error) {
+        alert('Error deleting workspace: ' + error.message);
+      }
+    }
+
+    // Show create workspace modal
+    function showCreateWorkspaceModal() {
+      document.getElementById('workspace-menu').classList.remove('show');
+      document.getElementById('create-workspace-modal').classList.add('show');
+      document.getElementById('new-workspace-input').value = '';
+      setTimeout(() => document.getElementById('new-workspace-input').focus(), 100);
+    }
+
+    // Hide create workspace modal
+    function hideCreateWorkspaceModal() {
+      document.getElementById('create-workspace-modal').classList.remove('show');
+    }
+
+    // Create workspace from modal
+    async function createWorkspaceFromModal() {
+      const name = document.getElementById('new-workspace-input').value.trim();
+      if (!name) {
+        alert('Please enter a workspace name');
+        return;
+      }
 
       try {
         const response = await fetch('/scraper/api/workspace/switch/', {
@@ -161,15 +429,28 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ workspace: name })
         });
-        if (response.ok) location.reload();
+
+        if (response.ok) {
+          location.reload();
+        } else {
+          const data = await response.json();
+          alert('Error: ' + data.error);
+        }
       } catch (error) {
         alert('Error creating workspace: ' + error.message);
       }
     }
 
+    // Close modal on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        hideCreateWorkspaceModal();
+      }
+    });
+
     // Update credits display
     function updateCredits(credits) {
-      document.getElementById('credits-display').textContent = `${credits} Credits`;
+      document.getElementById('credits-display').textContent = `💎 ${credits}`;
     }
 
     {% block extra_script %}{% endblock %}

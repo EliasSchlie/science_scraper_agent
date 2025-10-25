@@ -1,138 +1,245 @@
 {% extends "scraper/base.html" %}
 
-{% block title %}Scraper - Interaction Scraper{% endblock %}
+{% block title %}🤖 Scraper{% endblock %}
 
 {% block extra_style %}
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
+
 .stat-card {
-  background: #2d2d2d;
-  border: 1px solid #404040;
-  border-radius: 6px;
-  padding: 16px;
+  background: linear-gradient(135deg, #141414 0%, #0a0a0a 100%);
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 24px;
   text-align: center;
+  transition: all 0.3s;
 }
+
+.stat-card:hover {
+  border-color: #3a3a3a;
+  transform: translateY(-2px);
+}
+
 .stat-value {
-  font-size: 28px;
-  font-weight: 600;
-  color: #5865f2;
-  margin-bottom: 4px;
+  font-size: 36px;
+  font-weight: 700;
+  color: #6366f1;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
+
 .stat-label {
-  font-size: 12px;
-  color: #b9bbbe;
-}
-.card {
-  background: #2d2d2d;
-  border: 1px solid #404040;
-  border-radius: 6px;
-  padding: 20px;
-  margin-bottom: 16px;
-}
-h2 {
-  margin-bottom: 16px;
-  font-size: 16px;
-  color: #ffffff;
+  font-size: 13px;
+  color: #808080;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.form-group { margin-bottom: 14px; }
+
+.card {
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+h2 {
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
 label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  color: #b9bbbe;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #b0b0b0;
+  font-weight: 500;
 }
+
 input, select {
   width: 100%;
-  background: #1e1e1e;
-  border: 1px solid #404040;
-  color: #dcddde;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 13px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  color: #e0e0e0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
 }
+
 input:focus, select:focus {
   outline: none;
-  border-color: #5865f2;
+  border-color: #6366f1;
+  background: #1a1a1a;
 }
+
 button {
-  background: #5865f2;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   border: none;
   color: #fff;
-  padding: 10px 20px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
-button:hover { background: #4752c4; }
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
 button:disabled {
-  background: #404040;
+  background: #1a1a1a;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
-.job-list { list-style: none; }
+
+.job-list {
+  list-style: none;
+}
+
 .job-item {
-  background: #1e1e1e;
-  border: 1px solid #404040;
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 8px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  transition: all 0.2s;
 }
-.job-info { flex: 1; }
+
+.job-item:hover {
+  border-color: #3a3a3a;
+  background: #1a1a1a;
+}
+
+.job-info {
+  flex: 1;
+}
+
 .job-title {
-  font-weight: 500;
-  font-size: 14px;
-  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 6px;
+  color: #ffffff;
 }
+
 .job-meta {
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  color: #808080;
 }
+
 .job-status {
-  padding: 4px 10px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.status-pending { background: #f0b132; color: #000; }
-.status-running { background: #5865f2; color: #fff; }
-.status-completed { background: #43b581; color: #fff; }
-.status-failed { background: #f04747; color: #fff; }
+
+.status-pending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.status-running {
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.status-completed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 .job-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
+
 .btn-small {
-  padding: 5px 10px;
+  padding: 8px 14px;
   font-size: 12px;
-  background: #404040;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  font-weight: 500;
 }
-.btn-small:hover { background: #4a4a4a; }
-.btn-danger { background: #f04747; }
-.btn-danger:hover { background: #d84040; }
+
+.btn-small:hover {
+  background: #242424;
+  border-color: #3a3a3a;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
 .error, .success {
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 14px;
-  font-size: 13px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  font-weight: 500;
 }
-.error { background: #f04747; color: #fff; }
-.success { background: #43b581; color: #fff; }
+
+.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
 .empty-state {
   text-align: center;
-  padding: 30px;
-  color: #888;
-  font-size: 13px;
+  padding: 40px;
+  color: #606060;
+  font-size: 14px;
 }
 {% endblock %}
 
@@ -142,25 +249,25 @@ button:disabled {
   <div class="stats">
     <div class="stat-card">
       <div class="stat-value">{{ total_interactions }}</div>
-      <div class="stat-label">Total Interactions</div>
+      <div class="stat-label">📈 Total Interactions</div>
     </div>
     <div class="stat-card">
       <div class="stat-value">{{ recent_jobs|length }}</div>
-      <div class="stat-label">Recent Jobs</div>
+      <div class="stat-label">⚡ Recent Jobs</div>
     </div>
   </div>
 
   <div id="message-container"></div>
 
   <div class="card">
-    <h2>Start New Scraper Job</h2>
+    <h2>🚀 Start New Scraper Job</h2>
     <form id="start-job-form">
       <div class="form-group">
-        <label for="variable">Variable of Interest</label>
+        <label for="variable">🔬 Variable of Interest</label>
         <input type="text" id="variable" placeholder="e.g., creatine, caffeine, omega-3" required>
       </div>
       <div class="form-group">
-        <label for="min-interactions">Minimum Interactions (1 credit each)</label>
+        <label for="min-interactions">💎 Minimum Interactions (1 credit each)</label>
         <input type="number" id="min-interactions" value="5" min="1" required oninput="updateCost()">
       </div>
       <button type="submit" id="start-btn">Start Scraper (5 credits)</button>
@@ -168,7 +275,7 @@ button:disabled {
   </div>
 
   <div class="card">
-    <h2>Recent Jobs</h2>
+    <h2>📋 Recent Jobs</h2>
     {% if recent_jobs %}
       <ul class="job-list" id="job-list">
         {% for job in recent_jobs %}
@@ -182,16 +289,16 @@ button:disabled {
           <span class="job-status status-{{ job.status }}">{{ job.status }}</span>
           <div class="job-actions">
             {% if job.status == 'running' %}
-              <button class="btn-small" onclick="stopJob({{ job.id }})">Stop</button>
+              <button class="btn-small" onclick="stopJob({{ job.id }})">⏸️ Stop</button>
             {% endif %}
-            <button class="btn-small" onclick="viewJob({{ job.id }})">View</button>
-            <button class="btn-small btn-danger" onclick="deleteJob({{ job.id }})">Delete</button>
+            <button class="btn-small" onclick="viewJob({{ job.id }})">👁️ View</button>
+            <button class="btn-small btn-danger" onclick="deleteJob({{ job.id }})">🗑️</button>
           </div>
         </li>
         {% endfor %}
       </ul>
     {% else %}
-      <div class="empty-state">No jobs yet. Start a new job above!</div>
+      <div class="empty-state">No jobs yet. Start a new job above! 🎯</div>
     {% endif %}
   </div>
 </div>
@@ -226,7 +333,7 @@ document.getElementById('start-job-form').addEventListener('submit', async (e) =
     const data = await response.json();
 
     if (response.ok) {
-      showMessage(data.message || 'Job started successfully!', 'success');
+      showMessage(data.message || 'Job started successfully! ✨', 'success');
       setTimeout(() => location.reload(), 1000);
     } else {
       if (data.insufficient_credits) {
@@ -263,7 +370,7 @@ async function deleteJob(jobId) {
     const data = await response.json();
 
     if (response.ok) {
-      showMessage('Job deleted', 'success');
+      showMessage('Job deleted ✓', 'success');
       setTimeout(() => location.reload(), 500);
     } else if (data.can_force) {
       if (confirm(data.error + ' Force delete?')) {
@@ -273,7 +380,7 @@ async function deleteJob(jobId) {
           body: JSON.stringify({ force: true })
         });
         if (forceResponse.ok) {
-          showMessage('Job force deleted', 'success');
+          showMessage('Job force deleted ✓', 'success');
           setTimeout(() => location.reload(), 500);
         }
       }

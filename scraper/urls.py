@@ -14,5 +14,6 @@ urlpatterns = [
     path('api/interactions/', views.interactions_list, name='interactions_list'),
     path('api/workspaces/', views.list_workspaces, name='list_workspaces'),
     path('api/workspace/switch/', views.switch_workspace, name='switch_workspace'),
+    path('api/workspace/delete/', views.delete_workspace, name='delete_workspace'),
 ]
 

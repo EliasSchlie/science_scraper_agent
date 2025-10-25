@@ -40,8 +40,6 @@ def scraper_home(request):
 @login_required
 def graph_view(request):
     """Network graph visualization"""
-    from django.contrib.auth.models import User
-
     workspace = get_current_workspace(request)
 
     # Get list of all workspaces for current user
@@ -49,16 +47,9 @@ def graph_view(request):
     if 'default' not in all_workspaces:
         all_workspaces.insert(0, 'default')
 
-    # Check if workspace has interactions from user's jobs OR demo user's jobs
+    # Check if workspace has interactions from user's jobs
     user_job_ids = ScraperJob.objects.filter(user=request.user, workspace=workspace).values_list('id', flat=True)
     has_interactions = Interaction.objects.filter(job_id__in=user_job_ids).exists()
-
-    # Also check if demo data exists (so button shows even if user has no data)
-    if not has_interactions:
-        demo_user = User.objects.filter(username='demo').first()
-        if demo_user:
-            demo_job_ids = ScraperJob.objects.filter(user=demo_user, workspace=workspace).values_list('id', flat=True)
-            has_interactions = Interaction.objects.filter(job_id__in=demo_job_ids).exists()
 
     context = {
         'current_workspace': workspace,
@@ -142,21 +133,8 @@ def interactions_list(request):
     """Get list of all interactions for current workspace"""
     workspace = get_current_workspace(request)
 
-    # Check if viewing demo/testing data
-    view_demo = request.GET.get('demo') == 'true'
-
-    if view_demo:
-        # Show demo user's interactions (username: 'demo')
-        from django.contrib.auth.models import User
-        demo_user = User.objects.filter(username='demo').first()
-        if demo_user:
-            user_job_ids = ScraperJob.objects.filter(user=demo_user, workspace=workspace).values_list('id', flat=True)
-        else:
-            user_job_ids = []
-    else:
-        # Only show interactions from user's own jobs
-        user_job_ids = ScraperJob.objects.filter(user=request.user, workspace=workspace).values_list('id', flat=True)
-
+    # Only show interactions from user's own jobs
+    user_job_ids = ScraperJob.objects.filter(user=request.user, workspace=workspace).values_list('id', flat=True)
     interactions = Interaction.objects.filter(job_id__in=user_job_ids, effect__in=['+', '-'])[:100]
 
     data = [{
@@ -254,6 +232,37 @@ def switch_workspace(request):
         return JsonResponse({
             'workspace': workspace,
             'message': f'Switched to workspace: {workspace}'
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_POST
+@csrf_exempt
+@login_required
+def delete_workspace(request):
+    """Delete a workspace and all its jobs/interactions"""
+    try:
+        data = json.loads(request.body)
+        workspace = data.get('workspace', '').strip()
+
+        if not workspace:
+            return JsonResponse({'error': 'Workspace name is required'}, status=400)
+
+        if workspace == 'default':
+            return JsonResponse({'error': 'Cannot delete the default workspace'}, status=400)
+
+        # Delete all jobs in this workspace for this user (cascade deletes interactions)
+        deleted_count = ScraperJob.objects.filter(user=request.user, workspace=workspace).delete()[0]
+
+        # Switch to default if we're deleting current workspace
+        if get_current_workspace(request) == workspace:
+            request.session['workspace'] = 'default'
+
+        return JsonResponse({
+            'message': f'Workspace "{workspace}" deleted successfully',
+            'jobs_deleted': deleted_count
         })
 
     except Exception as e:
