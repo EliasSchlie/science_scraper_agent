@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Interaction Scraper{% endblock %}</title>
+  {% block extra_head %}{% endblock %}
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #1e1e1e;
+      color: #dcddde;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Navigation */
+    .nav-tabs {
+      background: #0a0a0a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      height: 50px;
+    }
+    .nav-tabs a {
+      color: #dcddde;
+      text-decoration: none;
+      padding: 15px 24px;
+      display: inline-block;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    .nav-tabs a:hover { background: #1a1a1a; }
+    .nav-tabs a.active {
+      border-bottom-color: #5865f2;
+      color: #ffffff;
+    }
+    .user-info {
+      margin-left: auto;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .user-info a {
+      color: #5865f2;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .user-info a:hover { text-decoration: underline; }
+    .credits-badge {
+      background: #5865f2;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 10px;
+      font-weight: 500;
+      font-size: 12px;
+    }
+
+    /* Workspace Bar */
+    .workspace-selector {
+      background: #0a0a0a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      height: 45px;
+    }
+    .workspace-selector label { color: #b9bbbe; font-size: 13px; }
+    .workspace-selector select, .workspace-selector input {
+      background: #2d2d2d;
+      border: 1px solid #404040;
+      color: #dcddde;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .workspace-selector button {
+      background: #404040;
+      color: #dcddde;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .workspace-selector button:hover { background: #4a4a4a; }
+
+    /* Main Content */
+    .container {
+      max-width: 1400px;
+      height: calc(100vh - 95px);
+      margin: 0 auto;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    {% block extra_style %}{% endblock %}
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav-tabs">
+    <a href="/scraper/" {% if request.path == '/scraper/' %}class="active"{% endif %}>Scraper</a>
+    <a href="/scraper/graph/" {% if '/graph/' in request.path %}class="active"{% endif %}>Graph</a>
+    <div class="user-info">
+      <span class="credits-badge" id="credits-display">{{ user.profile.credits }} Credits</span>
+      <span style="color: #b9bbbe;">{{ user.username }}</span>
+      <a href="/account/">Account</a>
+      <a href="/logout/" style="color: #f04747;">Logout</a>
+    </div>
+  </nav>
+
+  <!-- Workspace Bar -->
+  <div class="workspace-selector">
+    <label>Workspace:</label>
+    <select id="workspace-select" onchange="switchWorkspace()">
+      {% for ws in all_workspaces %}
+      <option value="{{ ws }}" {% if ws == current_workspace %}selected{% endif %}>{{ ws }}</option>
+      {% endfor %}
+    </select>
+    <span style="color: #404040;">|</span>
+    <input type="text" id="new-workspace-name" placeholder="New..." style="width: 120px;" />
+    <button onclick="createWorkspace()">Create</button>
+    {% block workspace_extra %}{% endblock %}
+  </div>
+
+  {% block content %}{% endblock %}
+
+  <script>
+    // Workspace switching
+    async function switchWorkspace() {
+      const workspace = document.getElementById('workspace-select').value;
+      try {
+        const response = await fetch('/scraper/api/workspace/switch/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workspace })
+        });
+        if (response.ok) location.reload();
+      } catch (error) {
+        showMessage('Error switching workspace', 'error');
+      }
+    }
+
+    // Create workspace
+    async function createWorkspace() {
+      const name = document.getElementById('new-workspace-name').value.trim();
+      if (!name) return alert('Enter workspace name');
+
+      try {
+        const response = await fetch('/scraper/api/workspace/switch/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workspace: name })
+        });
+        if (response.ok) location.reload();
+      } catch (error) {
+        alert('Error creating workspace: ' + error.message);
+      }
+    }
+
+    // Update credits display
+    function updateCredits(credits) {
+      document.getElementById('credits-display').textContent = `${credits} Credits`;
+    }
+
+    {% block extra_script %}{% endblock %}
+  </script>
+</body>
+</html>

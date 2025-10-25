@@ -1,997 +1,807 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Network Intervention Visualizer</title>
-    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+{% extends "scraper/base.html" %}
 
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
-          sans-serif;
-        background: #1e1e1e;
-        color: #dcddde;
-        padding: 0;
-        margin: 0;
-      }
+{% block title %}Graph View - Interaction Scraper{% endblock %}
 
-      /* Navigation tabs */
-      .nav-tabs {
-        background: #0a0a0a;
-        border-bottom: 1px solid #2a2a2a;
-        padding: 0;
-        display: flex;
-        justify-content: center;
-      }
+{% block extra_head %}
+<script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+{% endblock %}
 
-      .nav-tabs a {
-        color: #dcddde;
-        text-decoration: none;
-        padding: 15px 30px;
-        display: inline-block;
-        border-bottom: 3px solid transparent;
-        transition: all 0.3s;
-      }
+{% block extra_style %}
+/* Override container for graph view */
+.container {
+  max-width: 100%;
+  padding: 12px;
+  overflow: hidden;
+}
 
-      .nav-tabs a:hover {
-        background: #1a1a1a;
-      }
+.main-layout {
+  display: flex;
+  gap: 12px;
+  height: 100%;
+  overflow: hidden;
+}
 
-      .nav-tabs a.active {
-        border-bottom-color: #5865f2;
-        color: #ffffff;
-      }
+.left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
 
-      .container {
-        max-width: 100%;
-        margin: 0;
-        padding: 20px;
-      }
+.right-panel {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  transition: all 0.3s;
+  overflow: hidden;
+}
 
-      h1 {
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 24px;
-        font-weight: 500;
-      }
+.right-panel.collapsed {
+  flex: 0 0 0px;
+  padding: 0;
+  gap: 0;
+}
 
-      .main-layout {
-        display: flex;
-        gap: 20px;
-        height: calc(100vh - 180px);
-        width: 100%;
-        max-width: 100%;
-        overflow: hidden;
-      }
+.graph-container {
+  background: #2d2d2d;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
 
-      .left-panel {
-        flex-grow: 1;
-        flex-shrink: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        min-width: 0;
-        transition: all 0.3s ease;
-      }
+.recenter-button {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: #404040;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: #dcddde;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+  z-index: 10;
+}
 
-      .right-panel {
-        flex: 0 0 400px;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        position: relative;
-        transition: all 0.3s ease;
-        overflow: hidden;
-      }
+.recenter-button:hover {
+  background: #4a4a4a;
+}
 
-      .right-panel.collapsed {
-        flex: 0 0 40px;
-      }
+.intervention-panel {
+  background: #2d2d2d;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
-      .graph-container {
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        border-radius: 8px;
-        flex: 1;
-        position: relative;
-        min-height: 400px;
-      }
+.intervention-panel label {
+  font-size: 13px;
+  color: #b9bbbe;
+}
 
-      .recenter-button {
-        position: absolute;
-        bottom: 15px;
-        right: 15px;
-        background: #404040;
-        border: 1px solid #606060;
-        border-radius: 4px;
-        padding: 8px 12px;
-        color: #dcddde;
-        cursor: pointer;
-        font-size: 12px;
-        transition: background 0.2s;
-        z-index: 10;
-      }
+.intervention-panel select,
+.intervention-panel input {
+  background: #1e1e1e;
+  border: 1px solid #404040;
+  color: #dcddde;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+}
 
-      .recenter-button:hover {
-        background: #4a4a4a;
-      }
+.intervention-panel select {
+  min-width: 140px;
+}
 
-      .intervention-panel {
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        border-radius: 8px;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
+.intervention-panel input {
+  flex: 1;
+  min-width: 120px;
+}
 
-      .intervention-panel label {
-        font-size: 14px;
-        white-space: nowrap;
-      }
+.intervention-panel button {
+  background: #404040;
+  border: none;
+  color: #dcddde;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
 
-      .intervention-panel select,
-      .intervention-panel input {
-        background: #1e1e1e;
-        border: 1px solid #404040;
-        color: #dcddde;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 14px;
-      }
+.intervention-panel button:hover {
+  background: #4a4a4a;
+}
 
-      .intervention-panel select {
-        min-width: 180px;
-      }
+.interactions-list,
+.affected-list {
+  background: #2d2d2d;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+}
 
-      .intervention-panel input {
-        flex: 1;
-      }
+.right-panel.collapsed .interactions-list,
+.right-panel.collapsed .affected-list {
+  display: none;
+}
 
-      .intervention-panel button {
-        background: #404040;
-        border: none;
-        color: #dcddde;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        transition: background 0.2s;
-      }
+.interactions-list h3,
+.affected-list h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #404040;
+  padding-bottom: 8px;
+  color: #fff;
+}
 
-      .intervention-panel button:hover {
-        background: #4a4a4a;
-      }
+.interaction-item,
+.affected-item {
+  padding: 6px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid #333;
+}
 
-      .interactions-list,
-      .affected-list {
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        border-radius: 8px;
-        padding: 20px;
-        overflow-y: auto;
-        flex: 1;
-      }
+.interaction-item:last-child,
+.affected-item:last-child {
+  border-bottom: none;
+}
 
-      .right-panel.collapsed .interactions-list,
-      .right-panel.collapsed .affected-list {
-        display: none;
-      }
+.doi-link,
+.reference-link {
+  color: #5865f2;
+  text-decoration: none;
+  font-size: 11px;
+  margin-left: 4px;
+}
 
-      .interactions-list h3,
-      .affected-list h3 {
-        font-size: 16px;
-        font-weight: 500;
-        margin-bottom: 15px;
-        border-bottom: 1px solid #404040;
-        padding-bottom: 10px;
-      }
+.doi-link:hover,
+.reference-link:hover {
+  text-decoration: underline;
+}
 
-      .interaction-item,
-      .affected-item {
-        padding: 8px 0;
-        font-size: 13px;
-        line-height: 1.5;
-        border-bottom: 1px solid #333;
-      }
+.effect-increase {
+  color: #43b581;
+}
 
-      .interaction-item:last-child,
-      .affected-item:last-child {
-        border-bottom: none;
-      }
+.effect-decrease {
+  color: #f04747;
+}
 
-      .doi-link {
-        color: #7289da;
-        text-decoration: none;
-        font-size: 12px;
-        margin-left: 5px;
-      }
+#cy {
+  width: 100%;
+  height: 100%;
+}
 
-      .doi-link:hover {
-        text-decoration: underline;
-      }
+.loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #b9bbbe;
+  font-size: 14px;
+}
 
-      .effect-increase {
-        color: #43b581;
-      }
+.collapse-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #404040;
+  border: none;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #dcddde;
+  font-size: 14px;
+  transition: all 0.2s;
+  z-index: 100;
+}
 
-      .effect-decrease {
-        color: #f04747;
-      }
+.collapse-toggle:hover {
+  background: #4a4a4a;
+}
 
-      #cy {
-        width: 100%;
-        height: 100%;
-      }
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: #666;
+  font-size: 13px;
+}
 
-      .loading {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #dcddde;
-      }
+.empty-workspace-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  max-width: 450px;
+  padding: 30px;
+  background: #2d2d2d;
+  border: 1px solid #404040;
+  border-radius: 6px;
+}
 
-      .collapse-toggle {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: #404040;
-        border: 1px solid #606060;
-        border-radius: 4px;
-        width: 30px;
-        height: 30px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #dcddde;
-        font-size: 16px;
-        transition: all 0.2s;
-        z-index: 100;
-      }
+.empty-workspace-message h2 {
+  color: #fff;
+  margin-bottom: 12px;
+  font-size: 18px;
+}
 
-      .collapse-toggle:hover {
-        background: #4a4a4a;
-      }
+.empty-workspace-message p {
+  color: #888;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
 
-      .reference-link {
-        color: #7289da;
-        text-decoration: none;
-        cursor: pointer;
-        font-weight: 500;
-      }
+.empty-workspace-message a {
+  color: #5865f2;
+  text-decoration: none;
+  font-weight: 500;
+}
 
-      .reference-link:hover {
-        text-decoration: underline;
-      }
+.empty-workspace-message a:hover {
+  text-decoration: underline;
+}
+{% endblock %}
 
-      .empty-state {
-        text-align: center;
-        padding: 40px;
-        color: #666;
-      }
+{% block workspace_extra %}
+<span style="color: #404040;">|</span>
+<button id="demo-toggle" onclick="toggleDemoView()" style="background: #f0b132; color: #000;">Demo Data</button>
+{% endblock %}
 
-      /* Workspace selector */
-      .workspace-selector {
-        background: #0a0a0a;
-        border-bottom: 1px solid #2a2a2a;
-        padding: 15px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 15px;
-      }
-
-      .workspace-selector label {
-        color: #dcddde;
-        font-size: 0.9em;
-      }
-
-      .workspace-selector select {
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        color: #dcddde;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 14px;
-        cursor: pointer;
-      }
-
-      .workspace-selector select:focus {
-        outline: none;
-        border-color: #606060;
-      }
-
-      .workspace-selector input {
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        color: #dcddde;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 14px;
-        width: 150px;
-      }
-
-      .workspace-selector button {
-        background: #404040;
-        color: #dcddde;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-
-      .workspace-selector button:hover {
-        background: #4a4a4a;
-      }
-
-      .empty-workspace-message {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        max-width: 500px;
-        padding: 40px;
-        background: #2d2d2d;
-        border: 1px solid #404040;
-        border-radius: 8px;
-      }
-
-      .empty-workspace-message h2 {
-        color: #dcddde;
-        margin-bottom: 15px;
-        font-size: 20px;
-      }
-
-      .empty-workspace-message p {
-        color: #888;
-        line-height: 1.6;
-        margin-bottom: 20px;
-      }
-
-      .empty-workspace-message a {
-        color: #7289da;
-        text-decoration: none;
-        font-weight: 500;
-      }
-
-      .empty-workspace-message a:hover {
-        text-decoration: underline;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Navigation tabs -->
-    <nav class="nav-tabs">
-      <a href="/scraper/">Scraper</a>
-      <a href="/scraper/graph/" class="active">Current Graph</a>
-      <div style="margin-left: auto; padding: 0 20px; display: flex; align-items: center; gap: 15px;">
-        <span style="color: #5865f2; font-weight: 500;">{{ user.username }}</span>
-        <a href="/account/" style="color: #5865f2; text-decoration: none;">Account</a>
-        <a href="/logout/" style="color: #f04747; text-decoration: none;">Logout</a>
+{% block content %}
+<div class="container">
+  <div class="main-layout">
+    <div class="left-panel">
+      <div class="graph-container" id="cy">
+        {% if not has_interactions %}
+        <div class="empty-workspace-message">
+          <h2>No Graph Data Available</h2>
+          <p>
+            This workspace "<strong>{{ current_workspace }}</strong>" doesn't have any interactions yet.
+          </p>
+          <p>
+            To create a graph, go to the <a href="/scraper/">Scraper page</a> and run the agent with your query.
+            The interactions found will appear here as a network graph.
+          </p>
+        </div>
+        {% else %}
+        <div class="loading" id="loading-indicator">
+          Loading interactions...
+        </div>
+        <button
+          class="recenter-button"
+          id="recenter-button"
+          style="display: none"
+        >
+          ⟲ Recenter
+        </button>
+        {% endif %}
       </div>
-    </nav>
 
-    <!-- Workspace selector -->
-    <div class="workspace-selector">
-      <label for="workspace-select">Workspace:</label>
-      <select id="workspace-select" onchange="switchWorkspace()">
-        {% for ws in all_workspaces %}
-        <option value="{{ ws }}" {% if ws == current_workspace %}selected{% endif %}>{{ ws }}</option>
-        {% endfor %}
-      </select>
-      <span style="color: #666;">|</span>
-      <input type="text" id="new-workspace-name" placeholder="New workspace name" />
-      <button onclick="createWorkspace()">Create New</button>
-      <span style="color: #666;">|</span>
-      <button id="demo-toggle" onclick="toggleDemoView()" style="background: #f0b132; color: #000;">View Demo Data</button>
-    </div>
-
-    <div class="container">
-      <h1>Current Graph - {{ current_workspace }}</h1>
-
-      <div class="main-layout">
-        <div class="left-panel">
-          <div class="graph-container" id="cy">
-            {% if not has_interactions %}
-            <div class="empty-workspace-message">
-              <h2>No Graph Data Available</h2>
-              <p>
-                This workspace "<strong>{{ current_workspace }}</strong>" doesn't have any interactions yet.
-              </p>
-              <p>
-                To create a graph, go to the <a href="/scraper/">Scraper page</a> and run the agent with your query. 
-                The interactions found will appear here as a network graph.
-              </p>
-            </div>
-            {% else %}
-            <div class="loading" id="loading-indicator">
-              Loading interactions...
-            </div>
-            <button
-              class="recenter-button"
-              id="recenter-button"
-              style="display: none"
-            >
-              ⟲ Recenter
-            </button>
-            {% endif %}
-          </div>
-
-          <div class="intervention-panel">
-            <label>Make an intervention:</label>
-            <select id="intervention-type">
-              <option value="increase">Type (increase/decrease)</option>
-              <option value="increase">Increase</option>
-              <option value="decrease">Decrease</option>
-            </select>
-            <input
-              type="text"
-              id="intervention-element"
-              placeholder="Element"
-              list="elements-list"
-            />
-            <datalist id="elements-list"></datalist>
-            <button id="apply-intervention">Apply</button>
-            <button id="reset-intervention">Reset</button>
-          </div>
-        </div>
-
-        <div class="right-panel" id="right-panel">
-          <div class="collapse-toggle" id="collapse-toggle">◀</div>
-          <div class="interactions-list">
-            <h3>List of interactions</h3>
-            <div id="interactions-content"></div>
-          </div>
-
-          <div class="affected-list" id="affected-panel" style="display: none">
-            <h3>List of affected elements</h3>
-            <div id="affected-content"></div>
-          </div>
-        </div>
+      <div class="intervention-panel">
+        <label>Make an intervention:</label>
+        <select id="intervention-type">
+          <option value="increase">Type (increase/decrease)</option>
+          <option value="increase">Increase</option>
+          <option value="decrease">Decrease</option>
+        </select>
+        <input
+          type="text"
+          id="intervention-element"
+          placeholder="Element"
+          list="elements-list"
+        />
+        <datalist id="elements-list"></datalist>
+        <button id="apply-intervention">Apply</button>
+        <button id="reset-intervention">Reset</button>
       </div>
     </div>
 
-    <script>
-      let interactions = [];
-      let cy;
-      let currentIntervention = null;
-      let viewingDemo = false;
+    <div class="right-panel" id="right-panel">
+      <div class="collapse-toggle" id="collapse-toggle">◀</div>
+      <div class="interactions-list">
+        <h3>List of interactions</h3>
+        <div id="interactions-content"></div>
+      </div>
 
-      // Load interactions from Django API
-      async function loadInteractions() {
-        try {
-          const url = viewingDemo ? '/scraper/api/interactions/?demo=true' : '/scraper/api/interactions/';
-          const response = await fetch(url);
-          const data = await response.json();
+      <div class="affected-list" id="affected-panel" style="display: none">
+        <h3>List of affected elements</h3>
+        <div id="affected-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
 
-          if (data.interactions && data.interactions.length > 0) {
-            interactions = data.interactions;
-            document.getElementById('loading-indicator').style.display = 'none';
-            document.getElementById('recenter-button').style.display = 'block';
-            initializeGraph();
-            displayInteractions();
-            populateElementsList();
-            resetIntervention();
-          } else {
-            document.getElementById('loading-indicator').textContent =
-              'No interactions found. Run the scraper to generate data.';
-          }
-        } catch (error) {
-          console.error('Error loading interactions:', error);
-          document.getElementById('loading-indicator').textContent =
-            'Error loading interactions. Please try again.';
-        }
-      }
+{% block extra_script %}
+let interactions = [];
+let cy;
+let currentIntervention = null;
+let viewingDemo = false;
 
-      function initializeGraph() {
-        // Destroy existing graph if it exists
-        if (cy) {
-          cy.destroy();
-        }
+// Load interactions from Django API
+async function loadInteractions() {
+  try {
+    const url = viewingDemo ? '/scraper/api/interactions/?demo=true' : '/scraper/api/interactions/';
+    const response = await fetch(url);
+    const data = await response.json();
 
-        const elements = buildGraphElements(interactions);
+    if (data.interactions && data.interactions.length > 0) {
+      interactions = data.interactions;
+      document.getElementById('loading-indicator').style.display = 'none';
+      document.getElementById('recenter-button').style.display = 'block';
+      initializeGraph();
+      displayInteractions();
+      populateElementsList();
+      resetIntervention();
+    } else {
+      document.getElementById('loading-indicator').textContent =
+        'No interactions found. Run the scraper to generate data.';
+    }
+  } catch (error) {
+    console.error('Error loading interactions:', error);
+    document.getElementById('loading-indicator').textContent =
+      'Error loading interactions. Please try again.';
+  }
+}
 
-        cy = cytoscape({
-          container: document.getElementById('cy'),
-          elements: elements,
+function initializeGraph() {
+  // Destroy existing graph if it exists
+  if (cy) {
+    cy.destroy();
+  }
 
-          style: [
-            {
-              selector: 'node',
-              style: {
-                width: 24,
-                height: 24,
-                'background-color': '#404040',
-                'border-width': 1,
-                'border-color': '#606060',
-                label: 'data(label)',
-                'font-size': '18px',
-                'font-weight': 'bold',
-                color: '#ffffff',
-                'text-valign': 'bottom',
-                'text-halign': 'center',
-                'text-margin-y': 8,
-                'text-opacity': 1,
-                'text-outline-color': '#1e1e1e',
-                'text-outline-width': 2,
-              },
-            },
-            {
-              selector: 'node.highlighted-increase',
-              style: {
-                'background-color': '#43b581',
-                'border-color': '#43b581',
-                'border-width': 2,
-              },
-            },
-            {
-              selector: 'node.highlighted-decrease',
-              style: {
-                'background-color': '#f04747',
-                'border-color': '#f04747',
-                'border-width': 2,
-              },
-            },
-            {
-              selector: 'edge',
-              style: {
-                width: 1.5,
-                'line-color': 'data(color)',
-                'target-arrow-color': 'data(color)',
-                'target-arrow-shape': 'triangle',
-                'target-arrow-size': 6,
-                'curve-style': 'bezier',
-                opacity: 0.5,
-              },
-            },
-            {
-              selector: 'edge.highlighted',
-              style: {
-                width: 2.5,
-                opacity: 0.9,
-              },
-            },
-          ],
+  const elements = buildGraphElements(interactions);
 
-          layout: {
-            name: 'cose',
-            animate: true,
-            animationDuration: 500,
-            nodeRepulsion: 200000,
-            nodeOverlap: 100,
-            idealEdgeLength: 180,
-            edgeElasticity: 100,
-            nestingFactor: 1.2,
-            gravity: 20,
-            numIter: 2500,
-            initialTemp: 1000,
-            coolingFactor: 0.95,
-            minTemp: 1.0,
-            randomize: false,
-          },
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: elements,
 
-          minZoom: 0.1,
-          maxZoom: 3,
-          wheelSensitivity: 0.2,
+    style: [
+      {
+        selector: 'node',
+        style: {
+          width: 24,
+          height: 24,
+          'background-color': '#404040',
+          'border-width': 1,
+          'border-color': '#606060',
+          label: 'data(label)',
+          'font-size': '18px',
+          'font-weight': 'bold',
+          color: '#ffffff',
+          'text-valign': 'bottom',
+          'text-halign': 'center',
+          'text-margin-y': 8,
+          'text-opacity': 1,
+          'text-outline-color': '#1e1e1e',
+          'text-outline-width': 2,
+        },
+      },
+      {
+        selector: 'node.highlighted-increase',
+        style: {
+          'background-color': '#43b581',
+          'border-color': '#43b581',
+          'border-width': 2,
+        },
+      },
+      {
+        selector: 'node.highlighted-decrease',
+        style: {
+          'background-color': '#f04747',
+          'border-color': '#f04747',
+          'border-width': 2,
+        },
+      },
+      {
+        selector: 'edge',
+        style: {
+          width: 1.5,
+          'line-color': 'data(color)',
+          'target-arrow-color': 'data(color)',
+          'target-arrow-shape': 'triangle',
+          'target-arrow-size': 6,
+          'curve-style': 'bezier',
+          opacity: 0.5,
+        },
+      },
+      {
+        selector: 'edge.highlighted',
+        style: {
+          width: 2.5,
+          opacity: 0.9,
+        },
+      },
+    ],
+
+    layout: {
+      name: 'cose',
+      animate: true,
+      animationDuration: 500,
+      nodeRepulsion: 200000,
+      nodeOverlap: 100,
+      idealEdgeLength: 180,
+      edgeElasticity: 100,
+      nestingFactor: 1.2,
+      gravity: 20,
+      numIter: 2500,
+      initialTemp: 1000,
+      coolingFactor: 0.95,
+      minTemp: 1.0,
+      randomize: false,
+    },
+
+    minZoom: 0.1,
+    maxZoom: 3,
+    wheelSensitivity: 0.2,
+  });
+
+  cy.on('tap', 'node', (evt) => highlightNodeConnections(evt.target));
+
+  cy.on('mouseover', 'node', (evt) => {
+    const node = evt.target;
+    node.neighborhood('node').style({
+      'text-outline-width': 3,
+      color: '#ffffff',
+    });
+    node.connectedEdges().style({ opacity: 0.9, width: 2.5 });
+  });
+
+  cy.on('mouseout', 'node', (evt) => {
+    const node = evt.target;
+    node.neighborhood('node').forEach((n) => {
+      if (
+        !n.hasClass('highlighted-increase') &&
+        !n.hasClass('highlighted-decrease')
+      ) {
+        n.style({
+          'text-outline-width': 2,
+          color: '#ffffff',
         });
-
-        cy.on('tap', 'node', (evt) => highlightNodeConnections(evt.target));
-
-        cy.on('mouseover', 'node', (evt) => {
-          const node = evt.target;
-          node.neighborhood('node').style({
-            'text-outline-width': 3,
-            color: '#ffffff',
-          });
-          node.connectedEdges().style({ opacity: 0.9, width: 2.5 });
-        });
-
-        cy.on('mouseout', 'node', (evt) => {
-          const node = evt.target;
-          node.neighborhood('node').forEach((n) => {
-            if (
-              !n.hasClass('highlighted-increase') &&
-              !n.hasClass('highlighted-decrease')
-            ) {
-              n.style({
-                'text-outline-width': 2,
-                color: '#ffffff',
-              });
-            }
-          });
-          node.connectedEdges().forEach((edge) => {
-            if (!edge.hasClass('highlighted')) {
-              edge.style({ opacity: 0.5, width: 1.5 });
-            }
-          });
-        });
       }
-
-      function buildGraphElements(interactions) {
-        const nodes = new Set();
-        const edges = [];
-
-        interactions.forEach((interaction, idx) => {
-          nodes.add(interaction.independent_variable);
-          nodes.add(interaction.dependent_variable);
-
-          const color = interaction.effect === '+' ? '#43b581' : '#f04747';
-          edges.push({
-            data: {
-              id: `edge-${idx}`,
-              source: interaction.independent_variable,
-              target: interaction.dependent_variable,
-              color: color,
-              effect: interaction.effect,
-              reference: interaction.reference,
-            },
-          });
-        });
-
-        const nodeElements = Array.from(nodes).map((node) => ({
-          data: { id: node, label: node },
-        }));
-
-        return [...nodeElements, ...edges];
+    });
+    node.connectedEdges().forEach((edge) => {
+      if (!edge.hasClass('highlighted')) {
+        edge.style({ opacity: 0.5, width: 1.5 });
       }
+    });
+  });
+}
 
-      function displayInteractions() {
-        const container = document.getElementById('interactions-content');
-        const grouped = {};
-        const referenceMap = new Map();
-        let refCounter = 1;
+function buildGraphElements(interactions) {
+  const nodes = new Set();
+  const edges = [];
 
-        // First pass: assign numbers to unique DOIs
-        interactions.forEach((interaction) => {
-          if (!referenceMap.has(interaction.reference)) {
-            referenceMap.set(interaction.reference, refCounter++);
-          }
-        });
+  interactions.forEach((interaction, idx) => {
+    nodes.add(interaction.independent_variable);
+    nodes.add(interaction.dependent_variable);
 
-        interactions.forEach((interaction) => {
-          const key = `${interaction.independent_variable}→${interaction.dependent_variable}`;
-          if (!grouped[key]) {
-            grouped[key] = [];
-          }
-          grouped[key].push(interaction);
-        });
+    const color = interaction.effect === '+' ? '#43b581' : '#f04747';
+    edges.push({
+      data: {
+        id: `edge-${idx}`,
+        source: interaction.independent_variable,
+        target: interaction.dependent_variable,
+        color: color,
+        effect: interaction.effect,
+        reference: interaction.reference,
+      },
+    });
+  });
 
-        let html = '';
-        Object.entries(grouped).forEach(([key, items]) => {
-          const [iv, dv] = key.split('→');
-          const effect = items[0].effect === '+' ? 'increases' : 'decreases';
-          const effectClass =
-            items[0].effect === '+' ? 'effect-increase' : 'effect-decrease';
+  const nodeElements = Array.from(nodes).map((node) => ({
+    data: { id: node, label: node },
+  }));
 
-          html += `<div class="interaction-item">
-                <span class="${effectClass}">${iv} ${effect} ${dv} `;
+  return [...nodeElements, ...edges];
+}
 
-          items.forEach((item, idx) => {
-            if (idx > 0) html += ', ';
-            const refNum = referenceMap.get(item.reference);
-            html += `<a href="https://doi.org/${item.reference}" target="_blank" class="reference-link" title="${item.reference}">[${refNum}]</a>`;
-          });
+function displayInteractions() {
+  const container = document.getElementById('interactions-content');
+  const grouped = {};
+  const referenceMap = new Map();
+  let refCounter = 1;
 
-          html += `</span></div>`;
-        });
+  // First pass: assign numbers to unique DOIs
+  interactions.forEach((interaction) => {
+    if (!referenceMap.has(interaction.reference)) {
+      referenceMap.set(interaction.reference, refCounter++);
+    }
+  });
 
-        container.innerHTML =
-          html || '<div class="empty-state">No interactions to display</div>';
-      }
+  interactions.forEach((interaction) => {
+    const key = `${interaction.independent_variable}→${interaction.dependent_variable}`;
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(interaction);
+  });
 
-      function populateElementsList() {
-        const elements = new Set();
-        interactions.forEach((i) => {
-          elements.add(i.independent_variable);
-          elements.add(i.dependent_variable);
-        });
+  let html = '';
+  Object.entries(grouped).forEach(([key, items]) => {
+    const [iv, dv] = key.split('→');
+    const effect = items[0].effect === '+' ? 'increases' : 'decreases';
+    const effectClass =
+      items[0].effect === '+' ? 'effect-increase' : 'effect-decrease';
 
-        const datalist = document.getElementById('elements-list');
-        datalist.innerHTML = Array.from(elements)
-          .map((el) => `<option value="${el}">`)
-          .join('');
-      }
+    html += `<div class="interaction-item">
+          <span class="${effectClass}">${iv} ${effect} ${dv} `;
 
-      function applyIntervention() {
-        const type = document.getElementById('intervention-type').value;
-        const element = document
-          .getElementById('intervention-element')
-          .value.trim();
+    items.forEach((item, idx) => {
+      if (idx > 0) html += ', ';
+      const refNum = referenceMap.get(item.reference);
+      html += `<a href="https://doi.org/${item.reference}" target="_blank" class="reference-link" title="${item.reference}">[${refNum}]</a>`;
+    });
 
-        if (!element || (type === 'increase' && !type)) {
-          alert('Please select intervention type and element');
-          return;
-        }
+    html += `</span></div>`;
+  });
 
-        currentIntervention = { type, element };
+  container.innerHTML =
+    html || '<div class="empty-state">No interactions to display</div>';
+}
 
-        cy.nodes().removeClass('highlighted-increase highlighted-decrease');
-        cy.edges().removeClass('highlighted');
+function populateElementsList() {
+  const elements = new Set();
+  interactions.forEach((i) => {
+    elements.add(i.independent_variable);
+    elements.add(i.dependent_variable);
+  });
 
-        const affected = calculateAffectedElements(element, type);
-        visualizeIntervention(element, type, affected);
-        displayAffectedElements(element, type, affected);
-      }
+  const datalist = document.getElementById('elements-list');
+  datalist.innerHTML = Array.from(elements)
+    .map((el) => `<option value="${el}">`)
+    .join('');
+}
 
-      function calculateAffectedElements(startElement, interventionType) {
-        const affected = new Map();
-        const queue = [
-          {
-            element: startElement,
-            effect: interventionType,
-            path: [startElement],
-          },
-        ];
-        const visited = new Set();
+function applyIntervention() {
+  const type = document.getElementById('intervention-type').value;
+  const element = document
+    .getElementById('intervention-element')
+    .value.trim();
 
-        while (queue.length > 0) {
-          const { element, effect, path } = queue.shift();
-          const key = `${element}-${effect}`;
+  if (!element || (type === 'increase' && !type)) {
+    alert('Please select intervention type and element');
+    return;
+  }
 
-          if (visited.has(key)) continue;
-          visited.add(key);
+  currentIntervention = { type, element };
 
-          const outgoingEdges = interactions.filter(
-            (i) => i.independent_variable === element
-          );
+  cy.nodes().removeClass('highlighted-increase highlighted-decrease');
+  cy.edges().removeClass('highlighted');
 
-          outgoingEdges.forEach((edge) => {
-            const targetEffect = combineEffects(effect, edge.effect);
-            const newPath = [...path, edge.dependent_variable];
+  const affected = calculateAffectedElements(element, type);
+  visualizeIntervention(element, type, affected);
+  displayAffectedElements(element, type, affected);
+}
 
-            if (!affected.has(edge.dependent_variable)) {
-              affected.set(edge.dependent_variable, {
-                effect: targetEffect,
-                paths: [],
-              });
-            }
+function calculateAffectedElements(startElement, interventionType) {
+  const affected = new Map();
+  const queue = [
+    {
+      element: startElement,
+      effect: interventionType,
+      path: [startElement],
+    },
+  ];
+  const visited = new Set();
 
-            affected.get(edge.dependent_variable).paths.push({
-              path: newPath,
-              reference: edge.reference,
-            });
+  while (queue.length > 0) {
+    const { element, effect, path } = queue.shift();
+    const key = `${element}-${effect}`;
 
-            if (newPath.length < 5) {
-              queue.push({
-                element: edge.dependent_variable,
-                effect: targetEffect,
-                path: newPath,
-              });
-            }
-          });
-        }
+    if (visited.has(key)) continue;
+    visited.add(key);
 
-        return affected;
-      }
+    const outgoingEdges = interactions.filter(
+      (i) => i.independent_variable === element
+    );
 
-      function combineEffects(interventionEffect, edgeEffect) {
-        if (interventionEffect === 'increase') {
-          return edgeEffect === '+' ? 'increase' : 'decrease';
-        } else {
-          return edgeEffect === '+' ? 'decrease' : 'increase';
-        }
-      }
+    outgoingEdges.forEach((edge) => {
+      const targetEffect = combineEffects(effect, edge.effect);
+      const newPath = [...path, edge.dependent_variable];
 
-      function visualizeIntervention(element, type, affected) {
-        const node = cy.getElementById(element);
-        const className =
-          type === 'increase' ? 'highlighted-increase' : 'highlighted-decrease';
-        node.addClass(className);
-
-        affected.forEach((info, targetElement) => {
-          const targetNode = cy.getElementById(targetElement);
-          const affectedClass =
-            info.effect === 'increase'
-              ? 'highlighted-increase'
-              : 'highlighted-decrease';
-          targetNode.addClass(affectedClass);
-
-          info.paths.forEach((pathInfo) => {
-            for (let i = 0; i < pathInfo.path.length - 1; i++) {
-              const edges = cy.edges(
-                `[source="${pathInfo.path[i]}"][target="${
-                  pathInfo.path[i + 1]
-                }"]`
-              );
-              edges.addClass('highlighted');
-            }
-          });
+      if (!affected.has(edge.dependent_variable)) {
+        affected.set(edge.dependent_variable, {
+          effect: targetEffect,
+          paths: [],
         });
       }
 
-      function displayAffectedElements(element, type, affected) {
-        const panel = document.getElementById('affected-panel');
-        const container = document.getElementById('affected-content');
+      affected.get(edge.dependent_variable).paths.push({
+        path: newPath,
+        reference: edge.reference,
+      });
 
-        panel.style.display = 'block';
-
-        let html = `<div class="affected-item"><strong>Intervention:</strong> ${type} ${element}</div>`;
-
-        affected.forEach((info, targetElement) => {
-          const effectText =
-            info.effect === 'increase' ? 'increased' : 'decreased';
-          const effectClass =
-            info.effect === 'increase' ? 'effect-increase' : 'effect-decrease';
-
-          html += `<div class="affected-item">
-                <span class="${effectClass}">${targetElement} ${effectText}</span><br>`;
-
-          info.paths.forEach((pathInfo, idx) => {
-            const pathStr = pathInfo.path.join(' → ');
-            html += `<small>Path ${idx + 1}: ${pathStr}</small>
-                        <a href="https://doi.org/${
-                          pathInfo.reference
-                        }" target="_blank" class="doi-link">[${
-              pathInfo.reference
-            }]</a><br>`;
-          });
-
-          html += `</div>`;
+      if (newPath.length < 5) {
+        queue.push({
+          element: edge.dependent_variable,
+          effect: targetEffect,
+          path: newPath,
         });
-
-        container.innerHTML = html;
       }
+    });
+  }
 
-      function resetIntervention() {
-        currentIntervention = null;
-        if (cy) {
-          cy.nodes().removeClass('highlighted-increase highlighted-decrease');
-          cy.nodes().style({ 'border-width': 1 });
-          cy.edges().removeClass('highlighted');
-          cy.edges().style({ opacity: 0.5, width: 1.5 });
-        }
-        document.getElementById('intervention-element').value = '';
-        document.getElementById('affected-panel').style.display = 'none';
+  return affected;
+}
+
+function combineEffects(interventionEffect, edgeEffect) {
+  if (interventionEffect === 'increase') {
+    return edgeEffect === '+' ? 'increase' : 'decrease';
+  } else {
+    return edgeEffect === '+' ? 'decrease' : 'increase';
+  }
+}
+
+function visualizeIntervention(element, type, affected) {
+  const node = cy.getElementById(element);
+  const className =
+    type === 'increase' ? 'highlighted-increase' : 'highlighted-decrease';
+  node.addClass(className);
+
+  affected.forEach((info, targetElement) => {
+    const targetNode = cy.getElementById(targetElement);
+    const affectedClass =
+      info.effect === 'increase'
+        ? 'highlighted-increase'
+        : 'highlighted-decrease';
+    targetNode.addClass(affectedClass);
+
+    info.paths.forEach((pathInfo) => {
+      for (let i = 0; i < pathInfo.path.length - 1; i++) {
+        const edges = cy.edges(
+          `[source="${pathInfo.path[i]}"][target="${
+            pathInfo.path[i + 1]
+          }"]`
+        );
+        edges.addClass('highlighted');
       }
+    });
+  });
+}
 
-      function highlightNodeConnections(node) {
-        cy.edges().removeClass('highlighted');
-        const connectedEdges = node.connectedEdges();
-        connectedEdges.addClass('highlighted');
+function displayAffectedElements(element, type, affected) {
+  const panel = document.getElementById('affected-panel');
+  const container = document.getElementById('affected-content');
+
+  panel.style.display = 'block';
+
+  let html = `<div class="affected-item"><strong>Intervention:</strong> ${type} ${element}</div>`;
+
+  affected.forEach((info, targetElement) => {
+    const effectText =
+      info.effect === 'increase' ? 'increased' : 'decreased';
+    const effectClass =
+      info.effect === 'increase' ? 'effect-increase' : 'effect-decrease';
+
+    html += `<div class="affected-item">
+          <span class="${effectClass}">${targetElement} ${effectText}</span><br>`;
+
+    info.paths.forEach((pathInfo, idx) => {
+      const pathStr = pathInfo.path.join(' → ');
+      html += `<small>Path ${idx + 1}: ${pathStr}</small>
+                  <a href="https://doi.org/${
+                    pathInfo.reference
+                  }" target="_blank" class="doi-link">[${
+        pathInfo.reference
+      }]</a><br>`;
+    });
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function resetIntervention() {
+  currentIntervention = null;
+  if (cy) {
+    cy.nodes().removeClass('highlighted-increase highlighted-decrease');
+    cy.nodes().style({ 'border-width': 1 });
+    cy.edges().removeClass('highlighted');
+    cy.edges().style({ opacity: 0.5, width: 1.5 });
+  }
+  document.getElementById('intervention-element').value = '';
+  document.getElementById('affected-panel').style.display = 'none';
+}
+
+function highlightNodeConnections(node) {
+  cy.edges().removeClass('highlighted');
+  const connectedEdges = node.connectedEdges();
+  connectedEdges.addClass('highlighted');
+}
+
+document
+  .getElementById('apply-intervention')
+  .addEventListener('click', applyIntervention);
+document
+  .getElementById('reset-intervention')
+  .addEventListener('click', resetIntervention);
+
+// Collapse/expand functionality
+let isCollapsed = false;
+document
+  .getElementById('collapse-toggle')
+  .addEventListener('click', () => {
+    isCollapsed = !isCollapsed;
+    const rightPanel = document.getElementById('right-panel');
+    const toggle = document.getElementById('collapse-toggle');
+
+    rightPanel.classList.toggle('collapsed', isCollapsed);
+    toggle.textContent = isCollapsed ? '▶' : '◀';
+
+    setTimeout(() => {
+      if (cy) {
+        cy.resize();
+        cy.fit();
       }
+    }, 320);
+  });
 
-      document
-        .getElementById('apply-intervention')
-        .addEventListener('click', applyIntervention);
-      document
-        .getElementById('reset-intervention')
-        .addEventListener('click', resetIntervention);
+// Recenter button functionality
+document
+  .getElementById('recenter-button')
+  .addEventListener('click', () => {
+    if (cy) {
+      cy.fit();
+      cy.center();
+    }
+  });
 
-      // Collapse/expand functionality
-      let isCollapsed = false;
-      document
-        .getElementById('collapse-toggle')
-        .addEventListener('click', () => {
-          isCollapsed = !isCollapsed;
-          const rightPanel = document.getElementById('right-panel');
-          const toggle = document.getElementById('collapse-toggle');
+// Toggle demo view
+function toggleDemoView() {
+  viewingDemo = !viewingDemo;
+  const btn = document.getElementById('demo-toggle');
 
-          rightPanel.classList.toggle('collapsed', isCollapsed);
-          toggle.textContent = isCollapsed ? '▶' : '◀';
+  if (viewingDemo) {
+    btn.textContent = 'View My Data';
+    btn.style.background = '#43b581';
+    btn.style.color = '#fff';
+  } else {
+    btn.textContent = 'View Demo Data';
+    btn.style.background = '#f0b132';
+    btn.style.color = '#000';
+  }
 
-          setTimeout(() => {
-            if (cy) {
-              cy.resize();
-              cy.fit();
-            }
-          }, 320);
-        });
+  // Clear current graph
+  if (cy) {
+    cy.destroy();
+  }
 
-      // Recenter button functionality
-      document
-        .getElementById('recenter-button')
-        .addEventListener('click', () => {
-          if (cy) {
-            cy.fit();
-            cy.center();
-          }
-        });
+  const loadingEl = document.getElementById('loading-indicator');
+  if (loadingEl) {
+    loadingEl.style.display = 'block';
+    loadingEl.textContent = 'Loading interactions...';
+  }
 
-      // Switch workspace
-      async function switchWorkspace() {
-        const workspace = document.getElementById('workspace-select').value;
-        
-        try {
-          const response = await fetch('/scraper/api/workspace/switch/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ workspace: workspace }),
-          });
+  // Reload interactions with demo filter
+  loadInteractions();
+}
 
-          const data = await response.json();
-
-          if (response.ok) {
-            // Reload WITHOUT any parameters to show clean workspace
-            window.location.href = '/scraper/graph/';
-          } else {
-            alert('Error: ' + data.error);
-          }
-        } catch (error) {
-          alert('Error switching workspace: ' + error.message);
-        }
-      }
-
-      // Create new workspace
-      async function createWorkspace() {
-        const workspaceName = document.getElementById('new-workspace-name').value.trim();
-
-        if (!workspaceName) {
-          alert('Please enter a workspace name');
-          return;
-        }
-
-        try {
-          const response = await fetch('/scraper/api/workspace/switch/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ workspace: workspaceName }),
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            // Reload WITHOUT any parameters to show clean workspace
-            window.location.href = '/scraper/graph/';
-          } else {
-            alert('Error: ' + data.error);
-          }
-        } catch (error) {
-          alert('Error creating workspace: ' + error.message);
-        }
-      }
-
-      // Toggle demo view
-      function toggleDemoView() {
-        viewingDemo = !viewingDemo;
-        const btn = document.getElementById('demo-toggle');
-
-        if (viewingDemo) {
-          btn.textContent = 'View My Data';
-          btn.style.background = '#43b581';
-          btn.style.color = '#fff';
-        } else {
-          btn.textContent = 'View Demo Data';
-          btn.style.background = '#f0b132';
-          btn.style.color = '#000';
-        }
-
-        // Clear current graph
-        if (cy) {
-          cy.destroy();
-        }
-
-        const loadingEl = document.getElementById('loading-indicator');
-        if (loadingEl) {
-          loadingEl.style.display = 'block';
-          loadingEl.textContent = 'Loading interactions...';
-        }
-
-        // Reload interactions with demo filter
-        loadInteractions();
-      }
-
-      // Initialize by loading interactions (only if workspace has data)
-      const hasInteractions = {{ has_interactions|lower }};
-      if (hasInteractions) {
-        loadInteractions();
-      }
-    </script>
-  </body>
-</html>
+// Initialize by loading interactions (only if workspace has data)
+const hasInteractions = {{ has_interactions|lower }};
+if (hasInteractions) {
+  loadInteractions();
+}
+{% endblock %}
