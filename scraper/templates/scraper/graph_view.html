@@ -250,6 +250,10 @@
   border-color: #3a3a3a;
 }
 
+.right-panel.collapsed .collapse-toggle {
+  right: -48px;
+}
+
 .empty-state {
   text-align: center;
   padding: 40px;
@@ -324,6 +328,7 @@
         >
           🎯 Recenter
         </button>
+        <div class="collapse-toggle" id="collapse-toggle">◀</div>
         {% endif %}
       </div>
 
@@ -347,7 +352,6 @@
     </div>
 
     <div class="right-panel" id="right-panel">
-      <div class="collapse-toggle" id="collapse-toggle">◀</div>
       <div class="interactions-list">
         <h3>📋 List of interactions</h3>
         <div id="interactions-content"></div>

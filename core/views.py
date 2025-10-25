@@ -93,7 +93,18 @@ def account_view(request):
 
         return redirect('account')
 
-    return render(request, 'core/account.html')
+    # Provide workspace context for navigation
+    from scraper.models import ScraperJob
+    workspace = request.session.get('workspace', 'default')
+    all_workspaces = list(ScraperJob.objects.filter(user=request.user).values_list('workspace', flat=True).distinct())
+    if 'default' not in all_workspaces:
+        all_workspaces.insert(0, 'default')
+
+    context = {
+        'current_workspace': workspace,
+        'all_workspaces': all_workspaces,
+    }
+    return render(request, 'core/account.html', context)
 
 
 @login_required

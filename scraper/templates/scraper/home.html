@@ -241,6 +241,14 @@ button:disabled {
   color: #606060;
   font-size: 14px;
 }
+
+.job-activity {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6366f1;
+  font-style: italic;
+  opacity: 0.8;
+}
 {% endblock %}
 
 {% block content %}
@@ -267,7 +275,7 @@ button:disabled {
         <input type="text" id="variable" placeholder="e.g., creatine, caffeine, omega-3" required>
       </div>
       <div class="form-group">
-        <label for="min-interactions">💎 Minimum Interactions (1 credit each)</label>
+        <label for="min-interactions">Minimum Interactions (1 credit each)</label>
         <input type="number" id="min-interactions" value="5" min="1" required oninput="updateCost()">
       </div>
       <button type="submit" id="start-btn">Start Scraper (5 credits)</button>
@@ -285,13 +293,15 @@ button:disabled {
             <div class="job-meta">
               {{ job.interactions_found }} interactions · {{ job.papers_checked }} papers
             </div>
+            {% if job.status == 'running' %}
+            <div class="job-activity" data-job-id="{{ job.id }}">Creating queries...</div>
+            {% endif %}
           </div>
           <span class="job-status status-{{ job.status }}">{{ job.status }}</span>
           <div class="job-actions">
             {% if job.status == 'running' %}
               <button class="btn-small" onclick="stopJob({{ job.id }})">⏸️ Stop</button>
             {% endif %}
-            <button class="btn-small" onclick="viewJob({{ job.id }})">👁️ View</button>
             <button class="btn-small btn-danger" onclick="deleteJob({{ job.id }})">🗑️</button>
           </div>
         </li>
@@ -392,10 +402,6 @@ async function deleteJob(jobId) {
   }
 }
 
-function viewJob(jobId) {
-  window.open(`/scraper/api/job/${jobId}/status/`, '_blank');
-}
-
 function showMessage(msg, type) {
   const container = document.getElementById('message-container');
   container.innerHTML = `<div class="${type}">${msg}</div>`;
@@ -424,8 +430,28 @@ async function pollJobs() {
   });
 }
 
+// Rotate activity messages for running jobs
+const activityMessages = [
+  "Creating queries...",
+  "Searching PubMed...",
+  "Reading papers...",
+  "Extracting interactions..."
+];
+
+function rotateActivityMessages() {
+  const activityElements = document.querySelectorAll('.job-activity');
+  activityElements.forEach((el) => {
+    const randomMessage = activityMessages[Math.floor(Math.random() * activityMessages.length)];
+    el.textContent = randomMessage;
+  });
+}
+
 // Start polling if there are running jobs
 if (document.querySelectorAll('.status-running').length > 0) {
   pollingInterval = setInterval(pollJobs, 3000);
+  // Rotate activity messages every 2-5 seconds randomly
+  setInterval(() => {
+    rotateActivityMessages();
+  }, Math.random() * 3000 + 2000);
 }
 {% endblock %}

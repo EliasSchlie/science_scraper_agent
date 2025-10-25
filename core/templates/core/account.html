@@ -1,203 +1,191 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Account - Interaction Scraper</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-      background: #1e1e1e;
-      color: #dcddde;
-      padding: 20px;
-    }
-    .nav-tabs {
-      background: #0a0a0a;
-      border-bottom: 1px solid #2a2a2a;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-    }
-    .nav-tabs a {
-      color: #dcddde;
-      text-decoration: none;
-      padding: 15px 30px;
-      display: inline-block;
-      border-bottom: 3px solid transparent;
-      transition: all 0.3s;
-    }
-    .nav-tabs a:hover { background: #1a1a1a; }
-    .nav-tabs a.active {
-      border-bottom-color: #5865f2;
-      color: #ffffff;
-    }
-    .container {
-      max-width: 800px;
-      margin: 80px auto 0;
-      background: #2d2d2d;
-      border: 1px solid #404040;
-      border-radius: 8px;
-      padding: 40px;
-    }
-    h1 { margin-bottom: 10px; font-size: 28px; }
-    .credits-badge {
-      display: inline-block;
-      background: #5865f2;
-      color: #fff;
-      padding: 8px 16px;
-      border-radius: 16px;
-      font-size: 14px;
-      font-weight: 500;
-      margin-bottom: 30px;
-    }
-    .section {
-      background: #1e1e1e;
-      border: 1px solid #404040;
-      border-radius: 8px;
-      padding: 30px;
-      margin-bottom: 20px;
-    }
-    h2 {
-      margin-bottom: 20px;
-      font-size: 18px;
-      color: #ffffff;
-      border-bottom: 1px solid #404040;
-      padding-bottom: 10px;
-    }
-    .form-group { margin-bottom: 20px; }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 14px;
-      color: #b9bbbe;
-    }
-    input {
-      width: 100%;
-      background: #2d2d2d;
-      border: 1px solid #404040;
-      color: #dcddde;
-      padding: 12px;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    input:focus {
-      outline: none;
-      border-color: #5865f2;
-    }
-    button {
-      background: #5865f2;
-      border: none;
-      color: #fff;
-      padding: 12px 24px;
-      border-radius: 4px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button:hover { background: #4752c4; }
-    .error, .success {
-      padding: 12px;
-      border-radius: 4px;
-      margin-bottom: 20px;
-      font-size: 14px;
-    }
-    .error { background: #f04747; color: #fff; }
-    .success { background: #43b581; color: #fff; }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 12px 0;
-      border-bottom: 1px solid #333;
-    }
-    .info-row:last-child { border-bottom: none; }
-    .info-label { color: #b9bbbe; }
-    .info-value { color: #ffffff; font-weight: 500; }
-    .logout-btn {
-      background: #f04747;
-    }
-    .logout-btn:hover { background: #d84040; }
-  </style>
-</head>
-<body>
-  <nav class="nav-tabs">
-    <a href="/scraper/">Scraper</a>
-    <a href="/scraper/graph/">Current Graph</a>
-    <a href="/account/" class="active">Account</a>
-    <a href="/logout/" style="color: #f04747;">Logout</a>
-  </nav>
+{% extends "scraper/base.html" %}
 
-  <div class="container">
-    <h1>Account Settings</h1>
-    <div class="credits-badge">💰 {{ user.profile.credits }} Credits Available</div>
+{% block title %}Account - Interaction Scraper{% endblock %}
 
-    {% if messages %}
-      {% for message in messages %}
-        <div class="{% if message.tags == 'success' %}success{% else %}error{% endif %}">
-          {{ message }}
-        </div>
-      {% endfor %}
-    {% endif %}
+{% block extra_style %}
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
 
-    <div class="section">
-      <h2>Account Information</h2>
-      <div class="info-row">
-        <span class="info-label">Username</span>
-        <span class="info-value">{{ user.username }}</span>
+h1 {
+  margin-bottom: 10px;
+  font-size: 28px;
+  color: #ffffff;
+}
+
+.section {
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+h2 {
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: 600;
+  border-bottom: 1px solid #2a2a2a;
+  padding-bottom: 12px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #b0b0b0;
+  font-weight: 500;
+}
+
+input {
+  width: 100%;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  color: #e0e0e0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #1a1a1a;
+}
+
+button {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.error, .success {
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #808080;
+  font-size: 14px;
+}
+
+.info-value {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 14px;
+}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Account Settings</h1>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="{% if message.tags == 'success' %}success{% else %}error{% endif %}">
+        {{ message }}
       </div>
-      <div class="info-row">
-        <span class="info-label">Email</span>
-        <span class="info-value">{{ user.email|default:"Not set" }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Credits</span>
-        <span class="info-value">{{ user.profile.credits }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Member Since</span>
-        <span class="info-value">{{ user.date_joined|date:"M d, Y" }}</span>
-      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="section">
+    <h2>Account Information</h2>
+    <div class="info-row">
+      <span class="info-label">Username</span>
+      <span class="info-value">{{ user.username }}</span>
     </div>
-
-    <div class="section">
-      <h2>Update Email</h2>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="update_profile">
-        <div class="form-group">
-          <label for="email">Email Address</label>
-          <input type="email" id="email" name="email" value="{{ user.email }}" required>
-        </div>
-        <button type="submit">Update Email</button>
-      </form>
+    <div class="info-row">
+      <span class="info-label">Email</span>
+      <span class="info-value">{{ user.email|default:"Not set" }}</span>
     </div>
-
-    <div class="section">
-      <h2>Change Password</h2>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="change_password">
-        <div class="form-group">
-          <label for="old_password">Current Password</label>
-          <input type="password" id="old_password" name="old_password" required>
-        </div>
-        <div class="form-group">
-          <label for="new_password">New Password</label>
-          <input type="password" id="new_password" name="new_password" required>
-        </div>
-        <div class="form-group">
-          <label for="new_password_confirm">Confirm New Password</label>
-          <input type="password" id="new_password_confirm" name="new_password_confirm" required>
-        </div>
-        <button type="submit">Change Password</button>
-      </form>
+    <div class="info-row">
+      <span class="info-label">Credits</span>
+      <span class="info-value">{{ user.profile.credits }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Member Since</span>
+      <span class="info-value">{{ user.date_joined|date:"M d, Y" }}</span>
     </div>
   </div>
-</body>
-</html>
+
+  <div class="section">
+    <h2>Update Email</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_profile">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" value="{{ user.email }}" required>
+      </div>
+      <button type="submit">Update Email</button>
+    </form>
+  </div>
+
+  <div class="section">
+    <h2>Change Password</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="change_password">
+      <div class="form-group">
+        <label for="old_password">Current Password</label>
+        <input type="password" id="old_password" name="old_password" required>
+      </div>
+      <div class="form-group">
+        <label for="new_password">New Password</label>
+        <input type="password" id="new_password" name="new_password" required>
+      </div>
+      <div class="form-group">
+        <label for="new_password_confirm">Confirm New Password</label>
+        <input type="password" id="new_password_confirm" name="new_password_confirm" required>
+      </div>
+      <button type="submit">Change Password</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
