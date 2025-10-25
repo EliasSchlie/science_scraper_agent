@@ -1,5 +1,54 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+class UserProfile(models.Model):
+    """User profile with credits for compute usage"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    credits = models.DecimalField(max_digits=10, decimal_places=2, default=100.00)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.credits} credits"
+
+    def has_credits(self, amount):
+        """Check if user has enough credits"""
+        from decimal import Decimal
+        amount = Decimal(str(amount))
+        return self.credits >= amount
+
+    def deduct_credits(self, amount):
+        """Deduct credits from user account"""
+        from decimal import Decimal
+        amount = Decimal(str(amount))
+        if self.has_credits(amount):
+            self.credits -= amount
+            self.save(update_fields=['credits'])
+            return True
+        return False
+
+    def add_credits(self, amount):
+        """Add credits to user account"""
+        from decimal import Decimal
+        amount = Decimal(str(amount))
+        self.credits += amount
+        self.save(update_fields=['credits'])
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """Auto-create profile when user is created"""
+    if created:
+        UserProfile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    """Save profile when user is saved"""
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
 
 
 class Interaction(models.Model):
@@ -31,9 +80,11 @@ class ScraperJob(models.Model):
         ('completed', 'Completed'),
         ('failed', 'Failed'),
     ]
-    
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='scraper_jobs', null=True)
     workspace = models.CharField(max_length=100, default='default', db_index=True)
     variable_of_interest = models.CharField(max_length=500)
+    credits_cost = models.DecimalField(max_digits=10, decimal_places=2, default=10.00)
     min_interactions = models.IntegerField(default=5)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     interactions_found = models.IntegerField(default=0)

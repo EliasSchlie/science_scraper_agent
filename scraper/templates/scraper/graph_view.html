@@ -377,12 +377,11 @@
     <nav class="nav-tabs">
       <a href="/scraper/">Scraper</a>
       <a href="/scraper/graph/" class="active">Current Graph</a>
-      <a href="http://interaction-scraper.eliasschlie.com/" target="_blank"
-        >Example Graphs</a
-      >
-      <a href="https://youtu.be/dB3zxp_iKWc?si=FSnKdzKQsgGlozKh" target="_blank"
-        >Video Walkthrough</a
-      >
+      <div style="margin-left: auto; padding: 0 20px; display: flex; align-items: center; gap: 15px;">
+        <span style="color: #5865f2; font-weight: 500;">{{ user.username }}</span>
+        <a href="/account/" style="color: #5865f2; text-decoration: none;">Account</a>
+        <a href="/logout/" style="color: #f04747; text-decoration: none;">Logout</a>
+      </div>
     </nav>
 
     <!-- Workspace selector -->
@@ -396,6 +395,8 @@
       <span style="color: #666;">|</span>
       <input type="text" id="new-workspace-name" placeholder="New workspace name" />
       <button onclick="createWorkspace()">Create New</button>
+      <span style="color: #666;">|</span>
+      <button id="demo-toggle" onclick="toggleDemoView()" style="background: #f0b132; color: #000;">View Demo Data</button>
     </div>
 
     <div class="container">
@@ -467,11 +468,13 @@
       let interactions = [];
       let cy;
       let currentIntervention = null;
+      let viewingDemo = false;
 
       // Load interactions from Django API
       async function loadInteractions() {
         try {
-          const response = await fetch('/scraper/api/interactions/');
+          const url = viewingDemo ? '/scraper/api/interactions/?demo=true' : '/scraper/api/interactions/';
+          const response = await fetch(url);
           const data = await response.json();
 
           if (data.interactions && data.interactions.length > 0) {
@@ -926,7 +929,7 @@
       // Create new workspace
       async function createWorkspace() {
         const workspaceName = document.getElementById('new-workspace-name').value.trim();
-        
+
         if (!workspaceName) {
           alert('Please enter a workspace name');
           return;
@@ -952,6 +955,36 @@
         } catch (error) {
           alert('Error creating workspace: ' + error.message);
         }
+      }
+
+      // Toggle demo view
+      function toggleDemoView() {
+        viewingDemo = !viewingDemo;
+        const btn = document.getElementById('demo-toggle');
+
+        if (viewingDemo) {
+          btn.textContent = 'View My Data';
+          btn.style.background = '#43b581';
+          btn.style.color = '#fff';
+        } else {
+          btn.textContent = 'View Demo Data';
+          btn.style.background = '#f0b132';
+          btn.style.color = '#000';
+        }
+
+        // Clear current graph
+        if (cy) {
+          cy.destroy();
+        }
+
+        const loadingEl = document.getElementById('loading-indicator');
+        if (loadingEl) {
+          loadingEl.style.display = 'block';
+          loadingEl.textContent = 'Loading interactions...';
+        }
+
+        // Reload interactions with demo filter
+        loadInteractions();
       }
 
       // Initialize by loading interactions (only if workspace has data)

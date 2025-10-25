@@ -108,18 +108,28 @@ class ScraperService:
             self.job.completed_at = timezone.now()
             self.job.current_step = f"Completed: {self.job.interactions_found} interactions from {self.job.papers_checked} papers"
             self.job.save()
+
+            # Deduct credits on successful completion
+            if self.job.user and hasattr(self.job.user, 'profile'):
+                credits_deducted = self.job.user.profile.deduct_credits(self.job.credits_cost)
+                if credits_deducted:
+                    self.update_status("CREDITS", f"✓ Deducted {self.job.credits_cost} credits. Remaining: {self.job.user.profile.credits}")
+                else:
+                    self.update_status("CREDITS", f"⚠ Could not deduct credits (insufficient balance)")
         except ScraperService.JobStoppedException as e:
-            # Mark as failed (stopped) and finish
+            # Mark as failed (stopped) - NO credit deduction
             self.job.status = 'failed'
             self.job.error_message = 'Job stopped by user'
             self.job.completed_at = timezone.now()
-            self.job.add_log('Job stopped by user')
+            self.job.add_log('Job stopped by user - no credits charged')
             self.job.save()
             return
         except Exception as e:
+            # Mark as failed - NO credit deduction
             self.job.status = 'failed'
             self.job.error_message = str(e)
             self.job.completed_at = timezone.now()
+            self.job.add_log(f'Job failed - no credits charged')
             self.job.save()
             raise
     
